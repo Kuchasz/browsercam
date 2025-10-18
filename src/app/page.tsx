@@ -1,6 +1,39 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { getCameraCapabilities, isCameraAvailable, requestCameraPermissions } from "@cc/lib/camera";
 
 export default function HomePage() {
+	useEffect(() => {
+		async function logCameraCapabilities() {
+			try {
+				const available = await isCameraAvailable();
+				console.log("Camera available:", available);
+
+				if (!available) {
+					console.log("No camera device found");
+					return;
+				}
+
+				const hasPermission = await requestCameraPermissions();
+				console.log("Camera permission granted:", hasPermission);
+
+				if (!hasPermission) {
+					console.log("Camera permission denied");
+					return;
+				}
+
+				const capabilities = await getCameraCapabilities();
+				console.log("Camera capabilities:", capabilities);
+			} catch (error) {
+				console.error("Error getting camera capabilities:", error);
+			}
+		}
+
+		void logCameraCapabilities();
+	}, []);
+
 	return (
 		<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
 			<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
