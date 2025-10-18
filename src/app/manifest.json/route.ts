@@ -1,4 +1,4 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
   const manifest = {
@@ -26,10 +26,5 @@ export async function GET(request: NextRequest) {
     screenshots: [],
   };
 
-  return new Response(JSON.stringify(manifest, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=3600",
-    },
-  });
+  return NextResponse.json(manifest);
 }
