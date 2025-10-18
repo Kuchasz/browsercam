@@ -14,7 +14,7 @@ import {
 } from "@cc/lib/camera";
 import { useOrientation } from "@cc/lib/useOrientation";
 
-type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | null;
+type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | "torch" | null;
 
 // PWA install types - disabled for now
 // interface BeforeInstallPromptEvent extends Event {
@@ -238,7 +238,7 @@ export default function CameraPage() {
 		setSelectedCamera(deviceId);
 	};
 
-	const handleSettingChange = async (key: keyof CameraSettings, value: number | string) => {
+	const handleSettingChange = async (key: keyof CameraSettings, value: number | string | boolean) => {
 		const newSettings = { ...settings, [key]: value };
 
 		// When exposure time is changed, automatically switch to manual exposure mode
@@ -551,6 +551,20 @@ export default function CameraPage() {
 								</span>
 							</button>
 						)}
+
+						{/* Torch Toggle */}
+						{capabilities?.torch && (
+							<button
+								onClick={() => handleSettingChange("torch", !settings.torch)}
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+									settings.torch ? "bg-yellow-600" : "bg-black/50 backdrop-blur-sm"
+								}`}
+							>
+								<svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+								</svg>
+							</button>
+						)}
 					</div>
 
 					<div className="flex items-center gap-2">
@@ -691,6 +705,20 @@ export default function CameraPage() {
 								: "Auto"
 							}
 						</span>
+					</button>
+				)}
+
+				{/* Torch Toggle */}
+				{capabilities?.torch && (
+					<button
+						onClick={() => handleSettingChange("torch", !settings.torch)}
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+							settings.torch ? "bg-yellow-600" : "bg-black/50 backdrop-blur-sm"
+						}`}
+					>
+						<svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+						</svg>
 					</button>
 				)}
 				</div>

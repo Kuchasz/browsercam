@@ -33,6 +33,7 @@ declare global {
       step: number;
     };
     resizeMode?: string[];
+    torch?: boolean;
     whiteBalanceMode?: string[];
     zoom?: {
       max: number;
@@ -49,6 +50,7 @@ declare global {
     focusDistance?: number;
     focusMode?: string;
     iso?: number;
+    torch?: boolean;
     whiteBalanceMode?: string;
     zoom?: number;
   }
@@ -98,6 +100,7 @@ export interface CameraCapabilities {
     step: number;
   };
   resizeMode?: string[];
+  torch?: boolean;
   whiteBalanceMode?: string[];
   width?: {
     min: number;
@@ -121,6 +124,7 @@ export interface CameraSettings {
   frameRate?: number;
   height?: number;
   iso?: number;
+  torch?: boolean;
   whiteBalanceMode?: string;
   width?: number;
   zoom?: number;
@@ -272,6 +276,10 @@ export async function getCameraCapabilities(
       cameraCapabilities.resizeMode = capabilities.resizeMode;
     }
 
+    if (capabilities.torch !== undefined) {
+      cameraCapabilities.torch = capabilities.torch;
+    }
+
     if (
       capabilities.width &&
       capabilities.width.min !== undefined &&
@@ -352,6 +360,10 @@ export async function startCamera(
 
       if (settings.iso !== undefined) {
         advancedConstraints.iso = settings.iso;
+      }
+
+      if (settings.torch !== undefined) {
+        advancedConstraints.torch = settings.torch;
       }
 
       if (settings.whiteBalanceMode) {
@@ -506,6 +518,9 @@ export async function applySettingsToStream(
     if (settings.iso !== undefined) {
       imageCaptureSettings.iso = settings.iso;
     }
+    if (settings.torch !== undefined) {
+      imageCaptureSettings.torch = settings.torch;
+    }
     if (settings.whiteBalanceMode) {
       imageCaptureSettings.whiteBalanceMode = settings.whiteBalanceMode;
     }
@@ -521,7 +536,6 @@ export async function applySettingsToStream(
       await track.applyConstraints(imageCaptureSettings);
       console.log("Applied ImageCapture constraints:", imageCaptureSettings);
     }
-
   } catch (error) {
     console.error("Error applying settings to stream:", error);
     throw error;
