@@ -143,12 +143,6 @@ export default function CameraPage() {
 				} else if (caps.focusMode && caps.focusMode.length > 0) {
 					defaultSettings.focusMode = caps.focusMode[0];
 				}
-				// Set WB mode to continuous by default (auto)
-				if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes("continuous")) {
-					defaultSettings.whiteBalanceMode = "continuous";
-				} else if (caps.whiteBalanceMode && caps.whiteBalanceMode.length > 0) {
-					defaultSettings.whiteBalanceMode = caps.whiteBalanceMode[0];
-				}
 				setSettings(defaultSettings);
 
 				// Start camera stream
@@ -247,11 +241,6 @@ export default function CameraPage() {
 	const handleSettingChange = async (key: keyof CameraSettings, value: number | string) => {
 		const newSettings = { ...settings, [key]: value };
 
-		// When switching WB mode to continuous (auto), clear colorTemperature
-		if (key === "whiteBalanceMode" && value === "continuous") {
-			delete newSettings.colorTemperature;
-		}
-
 		// When exposure time is changed, automatically switch to manual exposure mode
 		if (key === "exposureTime" && capabilities?.exposureMode?.includes("manual")) {
 			newSettings.exposureMode = "manual";
@@ -270,47 +259,12 @@ export default function CameraPage() {
 		// Update settings state immediately
 		setSettings(newSettings);
 
-		// Define which settings require camera restart (ImageCapture settings)
-		const imageCaptureSettings = [
-			"colorTemperature", "exposureCompensation", "exposureMode", 
-			"exposureTime", "focusDistance", "focusMode", "iso", "whiteBalanceMode"
-		];
-
-		// Check if the changed setting requires camera restart
-		const requiresRestart = imageCaptureSettings.includes(key) || 
-			(key === "whiteBalanceMode" && newSettings.whiteBalanceMode === "manual");
-
-		if (stream && selectedCamera) {
-			if (requiresRestart) {
-				// For ImageCapture settings, restart the camera
-				try {
-					stopCamera(stream);
-					const newStream = await startCamera(newSettings, selectedCamera);
-					setStream(newStream);
-					if (videoRef.current) {
-						videoRef.current.srcObject = newStream;
-					}
-				} catch (err) {
-					console.error("Failed to restart camera with new settings:", err);
-				}
-			} else {
-				// For MediaTrack settings, try to apply without restart
-				try {
-					await applySettingsToStream(stream, newSettings);
-				} catch (err) {
-					console.error("Failed to apply settings to stream:", err);
-					// Fall back to restart if needed
-					try {
-						stopCamera(stream);
-						const newStream = await startCamera(newSettings, selectedCamera);
-						setStream(newStream);
-						if (videoRef.current) {
-							videoRef.current.srcObject = newStream;
-						}
-					} catch (restartErr) {
-						console.error("Failed to restart camera:", restartErr);
-					}
-				}
+		// Apply settings to the existing stream without restarting
+		if (stream) {
+			try {
+				await applySettingsToStream(stream, newSettings);
+			} catch (err) {
+				console.error("Failed to apply settings to stream:", err);
 			}
 		}
 	};
@@ -744,11 +698,19 @@ export default function CameraPage() {
 
 			{/* Slider Control Panel */}
 			{activeControl && (
-				<div className={`absolute ${
-					isLandscape
-						? "left-1/2 top-20 -translate-x-1/2 flex-col-reverse"
-						: "bottom-32 left-1/2 -translate-x-1/2 flex-col-reverse"
-				} flex items-center gap-4 rounded-2xl bg-black/80 p-4 backdrop-blur-lg`}>
+				<>
+					{/* Backdrop overlay to capture outside clicks */}
+					<div 
+						className="fixed inset-0 z-40"
+						onClick={() => setActiveControl(null)}
+					/>
+					
+					{/* Modal content */}
+					<div className={`absolute z-50 ${
+						isLandscape
+							? "left-1/2 top-20 -translate-x-1/2 flex-col-reverse"
+							: "bottom-32 left-1/2 -translate-x-1/2 flex-col-reverse"
+					} flex items-center gap-4 rounded-2xl bg-black/80 p-4 backdrop-blur-lg`}>
 					<button
 						onClick={() => setActiveControl(null)}
 						className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white/30"
@@ -803,18 +765,13 @@ export default function CameraPage() {
 								
 								setSettings(newSettings);
 								
-								// Restart camera with new settings
-								if (stream && selectedCamera) {
+								// Apply settings without restarting camera
+								if (stream) {
 									(async () => {
 										try {
-											stopCamera(stream);
-											const newStream = await startCamera(newSettings, selectedCamera);
-											setStream(newStream);
-											if (videoRef.current) {
-												videoRef.current.srcObject = newStream;
-											}
+											await applySettingsToStream(stream, newSettings);
 										} catch (err) {
-											console.error("Failed to restart camera with auto ISO:", err);
+											console.error("Failed to apply auto ISO settings:", err);
 										}
 									})();
 								}
@@ -848,29 +805,24 @@ export default function CameraPage() {
 						</span>
 						<button
 							onClick={() => {
-								const newSettings = { ...settings, whiteBalanceMode: "continuous" };
+								const newSettings = { ...settings };
 								delete newSettings.colorTemperature;
 								setSettings(newSettings);
 								
-								// Restart camera with new settings
-								if (stream && selectedCamera) {
+								// Apply settings without restarting camera
+								if (stream) {
 									(async () => {
 										try {
-											stopCamera(stream);
-											const newStream = await startCamera(newSettings, selectedCamera);
-											setStream(newStream);
-											if (videoRef.current) {
-												videoRef.current.srcObject = newStream;
-											}
+											await applySettingsToStream(stream, newSettings);
 										} catch (err) {
-											console.error("Failed to restart camera with auto WB:", err);
+											console.error("Failed to apply auto WB settings:", err);
 										}
 									})();
 								}
 							}}
-							disabled={settings.whiteBalanceMode === "continuous"}
+							disabled={!settings.colorTemperature}
 							className={`text-sm transition-colors ${
-								settings.whiteBalanceMode === "continuous" 
+								!settings.colorTemperature
 									? "text-white/40 cursor-not-allowed" 
 									: "text-blue-400 hover:text-blue-300 cursor-pointer"
 							}`}
@@ -895,6 +847,32 @@ export default function CameraPage() {
 						<span className="text-sm font-semibold">
 							{(settings.exposureCompensation ?? 0).toFixed(1)}
 						</span>
+						<button
+							onClick={() => {
+								const newSettings = { ...settings };
+								delete newSettings.exposureCompensation;
+								setSettings(newSettings);
+								
+								// Apply settings without restarting camera
+								if (stream) {
+									(async () => {
+										try {
+											await applySettingsToStream(stream, newSettings);
+										} catch (err) {
+											console.error("Failed to apply auto EV settings:", err);
+										}
+									})();
+								}
+							}}
+							disabled={!settings.exposureCompensation || settings.exposureCompensation === 0}
+							className={`text-sm transition-colors ${
+								!settings.exposureCompensation || settings.exposureCompensation === 0
+									? "text-white/40 cursor-not-allowed" 
+									: "text-blue-400 hover:text-blue-300 cursor-pointer"
+							}`}
+						>
+							Auto
+						</button>
 						</div>
 					)}
 
@@ -955,18 +933,13 @@ export default function CameraPage() {
 								
 								setSettings(newSettings);
 								
-								// Restart camera with new settings
-								if (stream && selectedCamera) {
+								// Apply settings without restarting camera
+								if (stream) {
 									(async () => {
 										try {
-											stopCamera(stream);
-											const newStream = await startCamera(newSettings, selectedCamera);
-											setStream(newStream);
-											if (videoRef.current) {
-												videoRef.current.srcObject = newStream;
-											}
+											await applySettingsToStream(stream, newSettings);
 										} catch (err) {
-											console.error("Failed to restart camera with auto exposure time:", err);
+											console.error("Failed to apply auto exposure time settings:", err);
 										}
 									})();
 								}
@@ -1000,8 +973,11 @@ export default function CameraPage() {
 						</span>
 					</div>
 				)}
-			</div>
-			)}			{/* Bottom Control Bar */}
+					</div>
+				</>
+			)}
+
+			{/* Bottom Control Bar */}
 			<div className="absolute bottom-0 left-0 right-0 p-4">
 				<div className="flex items-center justify-center">
 					{/* Center Capture Button */}
