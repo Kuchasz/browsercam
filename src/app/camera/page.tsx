@@ -272,6 +272,138 @@ export default function CameraPage() {
 		}
 	}, [stream]);
 
+	// Handle page visibility changes to resume video when returning from minimized state
+	useEffect(() => {
+		let isHandlingVisibilityChange = false;
+
+		const handleVisibilityChange = async () => {
+			// Prevent multiple simultaneous visibility change handlers
+			if (isHandlingVisibilityChange || document.hidden || !stream || !videoRef.current) {
+				return;
+			}
+
+			isHandlingVisibilityChange = true;
+
+			try {
+				// Page became visible again
+				console.log("Page became visible, checking video stream...");
+				
+				// Check if the stream is still active
+				const tracks = stream.getVideoTracks();
+				if (tracks.length > 0 && tracks[0]) {
+					const track = tracks[0];
+					
+					// If track is ended or not ready, restart the camera
+					if (track.readyState === 'ended' || !track.enabled) {
+						console.log("Video track ended, restarting camera...");
+						
+						// Clean up the old stream
+						stopCamera(stream);
+						setStream(null);
+						
+						// Restart the camera with current settings
+						try {
+							const newStream = await startCamera(settings, selectedCamera);
+							setStream(newStream);
+							
+							if (videoRef.current) {
+								videoRef.current.srcObject = newStream;
+								// Wait a bit for the stream to be ready
+								await new Promise(resolve => setTimeout(resolve, 100));
+								videoRef.current.load();
+								await videoRef.current.play();
+							}
+						} catch (err) {
+							console.error("Failed to restart camera:", err);
+							setError("Camera disconnected");
+							setErrorDetails("The camera was disconnected. Please try again.");
+						}
+					} else {
+						// Stream is still active, check if video is paused or needs restart
+						console.log("Checking video playback state...");
+						
+						const video = videoRef.current;
+						
+						// Check if video is paused, ended, or not playing
+						if (video.paused || video.ended || video.readyState < 2) {
+							console.log("Resuming video playback...");
+							
+							// Only reassign srcObject if it's different
+							if (video.srcObject !== stream) {
+								video.srcObject = stream;
+								await new Promise(resolve => setTimeout(resolve, 50));
+							}
+							
+							// Try to resume playback without loading if possible
+							try {
+								if (video.readyState >= 2) {
+									// Video has enough data, just play
+									await video.play();
+								} else {
+									// Need to reload first
+									video.load();
+									await new Promise(resolve => setTimeout(resolve, 100));
+									await video.play();
+								}
+							} catch (playErr) {
+								console.warn("Could not resume playback, restarting stream:", playErr);
+								
+								// Only restart if it's not an AbortError from overlapping requests
+								if (playErr instanceof Error && playErr.name !== 'AbortError') {
+									try {
+										stopCamera(stream);
+										setStream(null);
+										
+										const newStream = await startCamera(settings, selectedCamera);
+										setStream(newStream);
+										
+										if (videoRef.current) {
+											videoRef.current.srcObject = newStream;
+											await new Promise(resolve => setTimeout(resolve, 100));
+											videoRef.current.load();
+											await videoRef.current.play();
+										}
+									} catch (restartErr) {
+										console.error("Failed to restart camera after play failure:", restartErr);
+									}
+								}
+							}
+						} else {
+							console.log("Video is already playing correctly");
+						}
+					}
+				}
+			} catch (err) {
+				console.error("Error handling visibility change:", err);
+			} finally {
+				isHandlingVisibilityChange = false;
+			}
+		};
+
+		// Add event listener for page visibility changes
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		
+		// Also handle window focus events as additional fallback
+		const handleFocus = () => {
+			if (!isHandlingVisibilityChange && stream && videoRef.current) {
+				// Small delay to ensure the page is fully focused
+				setTimeout(() => {
+					if (!isHandlingVisibilityChange) {
+						handleVisibilityChange();
+					}
+				}, 150);
+			}
+		};
+		
+		window.addEventListener('focus', handleFocus);
+
+		return () => {
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+			window.removeEventListener('focus', handleFocus);
+			isHandlingVisibilityChange = false;
+		};
+	}, [stream, settings, selectedCamera]);
+
 	const handleCameraChange = (deviceId: string) => {
 		if (stream) {
 			stopCamera(stream);
