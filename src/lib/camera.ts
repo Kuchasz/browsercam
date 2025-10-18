@@ -346,6 +346,8 @@ export async function startCamera(
 			if (Object.keys(advancedConstraints).length > 0) {
 				await track.applyConstraints(advancedConstraints);
 			}
+
+			console.log("Applied advanced constraints:", advancedConstraints);
 		}
 
 		return stream;
@@ -421,6 +423,85 @@ export async function listCameras(): Promise<CameraDevice[]> {
 	} catch (error) {
 		console.error("Error listing cameras:", error);
 		return [];
+	}
+}
+
+/**
+ * Apply camera settings to an existing stream without restarting
+ * @param stream - The existing MediaStream
+ * @param settings - Camera settings to apply
+ * @returns Promise<void>
+ */
+export async function applySettingsToStream(
+	stream: MediaStream,
+	settings: CameraSettings,
+): Promise<void> {
+	try {
+		const track = stream.getVideoTracks()[0];
+		if (!track) {
+			throw new Error("No video track found in stream");
+		}
+
+		// Separate constraints into MediaTrack constraints and ImageCapture constraints
+		const mediaTrackConstraints: MediaTrackConstraints = {};
+		const imageCaptureSettings: any = {};
+
+		// MediaTrack constraints (can be applied with applyConstraints)
+		if (settings.aspectRatio !== undefined) {
+			mediaTrackConstraints.aspectRatio = settings.aspectRatio;
+		}
+		if (settings.frameRate !== undefined) {
+			mediaTrackConstraints.frameRate = settings.frameRate;
+		}
+		if (settings.height !== undefined) {
+			mediaTrackConstraints.height = settings.height;
+		}
+		if (settings.width !== undefined) {
+			mediaTrackConstraints.width = settings.width;
+		}
+		if (settings.zoom !== undefined) {
+			mediaTrackConstraints.zoom = settings.zoom;
+		}
+
+		// ImageCapture constraints (need to be handled differently)
+		if (settings.colorTemperature !== undefined) {
+			imageCaptureSettings.colorTemperature = settings.colorTemperature;
+		}
+		if (settings.exposureCompensation !== undefined) {
+			imageCaptureSettings.exposureCompensation = settings.exposureCompensation;
+		}
+		if (settings.exposureMode) {
+			imageCaptureSettings.exposureMode = settings.exposureMode;
+		}
+		if (settings.exposureTime !== undefined) {
+			imageCaptureSettings.exposureTime = settings.exposureTime;
+		}
+		if (settings.focusDistance !== undefined) {
+			imageCaptureSettings.focusDistance = settings.focusDistance;
+		}
+		if (settings.focusMode) {
+			imageCaptureSettings.focusMode = settings.focusMode;
+		}
+		if (settings.iso !== undefined) {
+			imageCaptureSettings.iso = settings.iso;
+		}
+		if (settings.whiteBalanceMode) {
+			imageCaptureSettings.whiteBalanceMode = settings.whiteBalanceMode;
+		}
+
+		// Apply MediaTrack constraints
+		if (Object.keys(mediaTrackConstraints).length > 0) {
+			await track.applyConstraints(mediaTrackConstraints);
+		}
+
+		// For ImageCapture settings, we need to restart the camera as they can't be applied dynamically
+		if (Object.keys(imageCaptureSettings).length > 0) {
+			console.log("ImageCapture settings detected, camera restart required:", imageCaptureSettings);
+			throw new Error("ImageCapture settings require camera restart");
+		}
+	} catch (error) {
+		console.error("Error applying settings to stream:", error);
+		throw error;
 	}
 }
 

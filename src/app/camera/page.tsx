@@ -5,6 +5,7 @@ import {
 	type CameraCapabilities,
 	type CameraDevice,
 	type CameraSettings,
+	applySettingsToStream,
 	capturePhoto,
 	getCameraCapabilities,
 	listCameras,
@@ -66,13 +67,11 @@ export default function CameraPage() {
 	const [selectedCamera, setSelectedCamera] = useState<string>("");
 	const [capabilities, setCapabilities] = useState<CameraCapabilities | null>(null);
 	const [settings, setSettings] = useState<CameraSettings>({});
-	const [pendingSettings, setPendingSettings] = useState<CameraSettings>({});
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string>("");
 	const [errorDetails, setErrorDetails] = useState<string>("");
 	const [capturedImage, setCapturedImage] = useState<string>("");
 	const [activeControl, setActiveControl] = useState<ActiveControl>(null);
-	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const isLandscape = useOrientation();
 
 	// PWA install functionality disabled for now
@@ -80,37 +79,7 @@ export default function CameraPage() {
 	// const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 	// const [isApplePlatform, setIsApplePlatform] = useState(false);
 
-	// Debounced function to apply camera settings
-	const applySettingsDebounced = useCallback((newSettings: CameraSettings) => {
-		if (debounceTimeoutRef.current) {
-			clearTimeout(debounceTimeoutRef.current);
-		}
-		
-		debounceTimeoutRef.current = setTimeout(async () => {
-			if (stream && selectedCamera) {
-				try {
-					stopCamera(stream);
-					const newStream = await startCamera(newSettings, selectedCamera);
-					setStream(newStream);
-					if (videoRef.current) {
-						videoRef.current.srcObject = newStream;
-					}
-					setSettings(newSettings);
-				} catch (err) {
-					console.error("Failed to apply settings:", err);
-				}
-			}
-		}, 500); // 500ms debounce delay
-	}, [stream, selectedCamera]);
 
-	// Cleanup debounce timeout on unmount
-	useEffect(() => {
-		return () => {
-			if (debounceTimeoutRef.current) {
-				clearTimeout(debounceTimeoutRef.current);
-			}
-		};
-	}, []);
 
 	// Load available cameras on mount
 	useEffect(() => {
@@ -173,7 +142,6 @@ export default function CameraPage() {
 					defaultSettings.whiteBalanceMode = caps.whiteBalanceMode[0];
 				}
 				setSettings(defaultSettings);
-				setPendingSettings(defaultSettings);
 
 				// Start camera stream
 				const mediaStream = await startCamera(defaultSettings, selectedCamera);
@@ -237,16 +205,21 @@ export default function CameraPage() {
 		setSelectedCamera(deviceId);
 	};
 
-	const handleSettingChange = (key: keyof CameraSettings, value: number | string) => {
-		const newSettings = { ...pendingSettings, [key]: value };
+	const handleSettingChange = async (key: keyof CameraSettings, value: number | string) => {
+		const newSettings = { ...settings, [key]: value };
 
-		// When color temperature is changed, automatically switch to manual WB mode
-		if (key === "colorTemperature" && capabilities?.whiteBalanceMode?.includes("manual")) {
-			newSettings.whiteBalanceMode = "manual";
+		// When switching WB mode to continuous (auto), clear colorTemperature
+		if (key === "whiteBalanceMode" && value === "continuous") {
+			delete newSettings.colorTemperature;
 		}
 
 		// When exposure time is changed, automatically switch to manual exposure mode
 		if (key === "exposureTime" && capabilities?.exposureMode?.includes("manual")) {
+			newSettings.exposureMode = "manual";
+		}
+
+		// When ISO is changed, automatically switch to manual exposure mode
+		if (key === "iso" && capabilities?.exposureMode?.includes("manual")) {
 			newSettings.exposureMode = "manual";
 		}
 
@@ -255,11 +228,52 @@ export default function CameraPage() {
 			newSettings.focusMode = "manual";
 		}
 
-		// Update pending settings immediately for UI responsiveness
-		setPendingSettings(newSettings);
+		// Update settings state immediately
+		setSettings(newSettings);
 
-		// Apply settings to camera with debounce
-		applySettingsDebounced(newSettings);
+		// Define which settings require camera restart (ImageCapture settings)
+		const imageCaptureSettings = [
+			"colorTemperature", "exposureCompensation", "exposureMode", 
+			"exposureTime", "focusDistance", "focusMode", "iso", "whiteBalanceMode"
+		];
+
+		// Check if the changed setting requires camera restart
+		const requiresRestart = imageCaptureSettings.includes(key) || 
+			(key === "whiteBalanceMode" && newSettings.whiteBalanceMode === "manual");
+
+		if (stream && selectedCamera) {
+			if (requiresRestart) {
+				// For ImageCapture settings, restart the camera
+				try {
+					stopCamera(stream);
+					const newStream = await startCamera(newSettings, selectedCamera);
+					setStream(newStream);
+					if (videoRef.current) {
+						videoRef.current.srcObject = newStream;
+					}
+				} catch (err) {
+					console.error("Failed to restart camera with new settings:", err);
+				}
+			} else {
+				// For MediaTrack settings, try to apply without restart
+				try {
+					await applySettingsToStream(stream, newSettings);
+				} catch (err) {
+					console.error("Failed to apply settings to stream:", err);
+					// Fall back to restart if needed
+					try {
+						stopCamera(stream);
+						const newStream = await startCamera(newSettings, selectedCamera);
+						setStream(newStream);
+						if (videoRef.current) {
+							videoRef.current.srcObject = newStream;
+						}
+					} catch (restartErr) {
+						console.error("Failed to restart camera:", restartErr);
+					}
+				}
+			}
+		}
 	};
 
 	const handleCapture = () => {
@@ -410,7 +424,7 @@ export default function CameraPage() {
 										</svg>
 									</div>
 									<span className="text-xs font-semibold">
-										{getAspectRatio(pendingSettings.width ?? capabilities.width.max, pendingSettings.height ?? capabilities.height.max)}
+										{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
 									</span>
 								</div>
 							)}
@@ -446,7 +460,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">FPS</span>
-								<span className="text-xs font-semibold">{pendingSettings.frameRate ?? capabilities.frameRate.max}</span>
+								<span className="text-xs font-semibold">{settings.frameRate ?? capabilities.frameRate.max}</span>
 							</button>
 						)}
 
@@ -460,7 +474,7 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">ISO</span>
 								<span className="text-xs font-semibold">
-									{pendingSettings.iso ? pendingSettings.iso : "Auto"}
+									{settings.iso ? settings.iso : "Auto"}
 								</span>
 							</button>
 						)}
@@ -475,7 +489,7 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">WB</span>
 								<span className="text-xs font-semibold">
-									{pendingSettings.whiteBalanceMode === "continuous" ? "Auto" : pendingSettings.colorTemperature ?? "Auto"}
+									{settings.colorTemperature ? `${settings.colorTemperature}K` : "Auto"}
 								</span>
 							</button>
 						)}
@@ -489,7 +503,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">EV</span>
-								<span className="text-xs font-semibold">{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}</span>
+								<span className="text-xs font-semibold">{(settings.exposureCompensation ?? 0).toFixed(1)}</span>
 							</button>
 						)}
 
@@ -502,7 +516,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">ZOOM</span>
-								<span className="text-xs font-semibold">{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
+								<span className="text-xs font-semibold">{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
 							</button>
 						)}
 
@@ -514,11 +528,11 @@ export default function CameraPage() {
 									activeControl === "focusDistance" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
-								{pendingSettings.focusMode === "manual" ? (
+								{settings.focusMode === "manual" ? (
 									<>
 										<span className="text-[10px] text-blue-400">MF</span>
 										<span className="text-xs font-semibold">
-											{(pendingSettings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}
+											{(settings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}
 										</span>
 									</>
 								) : (
@@ -537,9 +551,9 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">SHUTTER</span>
 								<span className="text-xs font-semibold">
-									{pendingSettings.exposureMode === "continuous"
-										? "Auto"
-										: `1/${Math.round(1000 / (pendingSettings.exposureTime ?? capabilities.exposureTime.min))}`
+									{settings.exposureTime
+										? `1/${Math.round(1000 / settings.exposureTime)}`
+										: "Auto"
 									}
 								</span>
 							</button>
@@ -568,7 +582,7 @@ export default function CameraPage() {
 									</svg>
 								</div>
 							<span className="text-xs font-semibold">
-								{getAspectRatio(pendingSettings.width ?? capabilities.width.max, pendingSettings.height ?? capabilities.height.max)}
+								{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
 							</span>
 							</div>
 						)}
@@ -588,7 +602,7 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">FPS</span>
-						<span className="text-xs font-semibold">{pendingSettings.frameRate ?? capabilities.frameRate.max}</span>
+						<span className="text-xs font-semibold">{settings.frameRate ?? capabilities.frameRate.max}</span>
 					</button>
 				)}
 
@@ -602,7 +616,7 @@ export default function CameraPage() {
 					>
 						<span className="text-[10px] text-blue-400">ISO</span>
 					<span className="text-xs font-semibold">
-						{pendingSettings.iso ? pendingSettings.iso : "Auto"}
+						{settings.iso ? settings.iso : "Auto"}
 					</span>
 					</button>
 				)}
@@ -617,7 +631,7 @@ export default function CameraPage() {
 					>
 						<span className="text-[10px] text-blue-400">WB</span>
 					<span className="text-xs font-semibold">
-						{pendingSettings.whiteBalanceMode === "continuous" ? "Auto" : pendingSettings.colorTemperature ?? "Auto"}
+						{settings.colorTemperature ? `${settings.colorTemperature}K` : "Auto"}
 					</span>
 					</button>
 				)}
@@ -631,7 +645,7 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">EV</span>
-						<span className="text-xs font-semibold">{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}</span>
+						<span className="text-xs font-semibold">{(settings.exposureCompensation ?? 0).toFixed(1)}</span>
 					</button>
 				)}
 
@@ -644,7 +658,7 @@ export default function CameraPage() {
 						}`}
 					>
 					<span className="text-[10px] text-blue-400">ZOOM</span>
-					<span className="text-xs font-semibold">{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
+					<span className="text-xs font-semibold">{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
 				</button>
 				)}
 
@@ -679,9 +693,9 @@ export default function CameraPage() {
 					>
 						<span className="text-[10px] text-blue-400">SHUTTER</span>
 						<span className="text-xs font-semibold">
-							{settings.exposureMode === "continuous"
-								? "Auto"
-								: `1/${Math.round(1000 / (settings.exposureTime ?? capabilities.exposureTime.min))}`
+							{settings.exposureTime
+								? `1/${Math.round(1000 / settings.exposureTime)}`
+								: "Auto"
 							}
 						</span>
 					</button>
@@ -713,12 +727,12 @@ export default function CameraPage() {
 								min={capabilities.frameRate.min}
 								max={capabilities.frameRate.max}
 								step={1}
-								value={pendingSettings.frameRate ?? capabilities.frameRate.max}
-								onChange={(e) => handleSettingChange("frameRate", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
+							value={settings.frameRate ?? capabilities.frameRate.max}
+							onChange={(e) => handleSettingChange("frameRate", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
 						<span className="text-sm font-semibold">
-							{pendingSettings.frameRate ?? capabilities.frameRate.max}
+							{settings.frameRate ?? capabilities.frameRate.max}
 						</span>
 						</div>
 					)}
@@ -731,13 +745,50 @@ export default function CameraPage() {
 								min={capabilities.iso.min}
 								max={capabilities.iso.max}
 								step={capabilities.iso.step}
-							value={pendingSettings.iso ?? capabilities.iso.min}
+							value={settings.iso ?? capabilities.iso.min}
 							onChange={(e) => handleSettingChange("iso", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							{pendingSettings.iso ? pendingSettings.iso : "Auto"}
+							{settings.iso ? settings.iso : "Auto"}
 						</span>
+						<button
+							onClick={() => {
+								const newSettings = { ...settings };
+								delete newSettings.iso;
+								
+								// Only set to continuous if both exposureTime and iso will be cleared
+								if (!newSettings.exposureTime) {
+									newSettings.exposureMode = "continuous";
+								}
+								
+								setSettings(newSettings);
+								
+								// Restart camera with new settings
+								if (stream && selectedCamera) {
+									(async () => {
+										try {
+											stopCamera(stream);
+											const newStream = await startCamera(newSettings, selectedCamera);
+											setStream(newStream);
+											if (videoRef.current) {
+												videoRef.current.srcObject = newStream;
+											}
+										} catch (err) {
+											console.error("Failed to restart camera with auto ISO:", err);
+										}
+									})();
+								}
+							}}
+							disabled={!settings.iso}
+							className={`text-sm transition-colors ${
+								!settings.iso
+									? "text-white/40 cursor-not-allowed" 
+									: "text-blue-400 hover:text-blue-300 cursor-pointer"
+							}`}
+						>
+							Auto
+						</button>
 						</div>
 					)}
 
@@ -749,13 +800,44 @@ export default function CameraPage() {
 								min={capabilities.colorTemperature.min}
 								max={capabilities.colorTemperature.max}
 								step={capabilities.colorTemperature.step}
-							value={pendingSettings.colorTemperature ?? 5600}
+							value={settings.colorTemperature ?? 5600}
 							onChange={(e) => handleSettingChange("colorTemperature", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							{pendingSettings.colorTemperature ?? 5600}K
+							{settings.colorTemperature ? `${settings.colorTemperature}K` : "Auto"}
 						</span>
+						<button
+							onClick={() => {
+								const newSettings = { ...settings, whiteBalanceMode: "continuous" };
+								delete newSettings.colorTemperature;
+								setSettings(newSettings);
+								
+								// Restart camera with new settings
+								if (stream && selectedCamera) {
+									(async () => {
+										try {
+											stopCamera(stream);
+											const newStream = await startCamera(newSettings, selectedCamera);
+											setStream(newStream);
+											if (videoRef.current) {
+												videoRef.current.srcObject = newStream;
+											}
+										} catch (err) {
+											console.error("Failed to restart camera with auto WB:", err);
+										}
+									})();
+								}
+							}}
+							disabled={settings.whiteBalanceMode === "continuous"}
+							className={`text-sm transition-colors ${
+								settings.whiteBalanceMode === "continuous" 
+									? "text-white/40 cursor-not-allowed" 
+									: "text-blue-400 hover:text-blue-300 cursor-pointer"
+							}`}
+						>
+							Auto
+						</button>
 						</div>
 					)}
 
@@ -767,35 +849,44 @@ export default function CameraPage() {
 								min={capabilities.exposureCompensation.min}
 								max={capabilities.exposureCompensation.max}
 								step={capabilities.exposureCompensation.step}
-							value={pendingSettings.exposureCompensation ?? 0}
+							value={settings.exposureCompensation ?? 0}
 							onChange={(e) => handleSettingChange("exposureCompensation", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}
+							{(settings.exposureCompensation ?? 0).toFixed(1)}
 						</span>
 						</div>
 					)}
 
-					{activeControl === "focusDistance" && capabilities?.focusDistance && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">FOCUS</span>
-							<input
-								type="range"
-								min={capabilities.focusDistance.min}
-								max={capabilities.focusDistance.max}
-								step={capabilities.focusDistance.step}
-							value={pendingSettings.focusDistance ?? capabilities.focusDistance.min}
-							onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{(pendingSettings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}m
-						</span>
-					</div>
-				)}
-
-				{activeControl === "exposureTime" && capabilities?.exposureTime && (
+				{activeControl === "focusDistance" && capabilities?.focusDistance && (
+					<div className="flex flex-row items-center gap-2">
+						<span className="text-xs text-blue-400">FOCUS</span>
+						<input
+							type="range"
+							min={capabilities.focusDistance.min}
+							max={capabilities.focusDistance.max}
+							step={capabilities.focusDistance.step}
+						value={settings.focusDistance ?? capabilities.focusDistance.min}
+						onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
+						className="w-48 accent-blue-500"
+					/>
+					<span className="text-sm font-semibold">
+						{(settings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}m
+					</span>
+					<button
+						onClick={() => handleSettingChange("focusMode", "continuous")}
+						disabled={settings.focusMode === "continuous"}
+						className={`text-sm transition-colors ${
+							settings.focusMode === "continuous" 
+								? "text-white/40 cursor-not-allowed" 
+								: "text-blue-400 hover:text-blue-300 cursor-pointer"
+						}`}
+					>
+						Auto
+					</button>
+				</div>
+			)}				{activeControl === "exposureTime" && capabilities?.exposureTime && (
 						<div className="flex flex-row items-center gap-2">
 							<span className="text-xs text-blue-400">SHUTTER</span>
 							<input
@@ -803,13 +894,53 @@ export default function CameraPage() {
 								min={capabilities.exposureTime.min}
 								max={capabilities.exposureTime.max}
 								step={capabilities.exposureTime.step}
-							value={pendingSettings.exposureTime ?? capabilities.exposureTime.min}
+							value={settings.exposureTime ?? capabilities.exposureTime.min}
 							onChange={(e) => handleSettingChange("exposureTime", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							1/{Math.round(1000 / (pendingSettings.exposureTime ?? capabilities.exposureTime.min))}
+							{settings.exposureTime
+								? `1/${Math.round(1000 / settings.exposureTime)}`
+								: "Auto"
+							}
 						</span>
+						<button
+							onClick={() => {
+								const newSettings = { ...settings };
+								delete newSettings.exposureTime;
+								
+								// Only set to continuous if both exposureTime and iso will be cleared
+								if (!newSettings.iso) {
+									newSettings.exposureMode = "continuous";
+								}
+								
+								setSettings(newSettings);
+								
+								// Restart camera with new settings
+								if (stream && selectedCamera) {
+									(async () => {
+										try {
+											stopCamera(stream);
+											const newStream = await startCamera(newSettings, selectedCamera);
+											setStream(newStream);
+											if (videoRef.current) {
+												videoRef.current.srcObject = newStream;
+											}
+										} catch (err) {
+											console.error("Failed to restart camera with auto exposure time:", err);
+										}
+									})();
+								}
+							}}
+							disabled={!settings.exposureTime}
+							className={`text-sm transition-colors ${
+								!settings.exposureTime
+									? "text-white/40 cursor-not-allowed" 
+									: "text-blue-400 hover:text-blue-300 cursor-pointer"
+							}`}
+						>
+							Auto
+						</button>
 						</div>
 					)}
 
@@ -821,12 +952,12 @@ export default function CameraPage() {
 								min={capabilities.zoom.min}
 								max={capabilities.zoom.max}
 								step={capabilities.zoom.step}
-							value={pendingSettings.zoom ?? capabilities.zoom.min}
+							value={settings.zoom ?? capabilities.zoom.min}
 							onChange={(e) => handleSettingChange("zoom", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x
+							{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x
 						</span>
 					</div>
 				)}
