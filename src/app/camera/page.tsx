@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
 	type CameraCapabilities,
 	type CameraDevice,
@@ -66,17 +66,51 @@ export default function CameraPage() {
 	const [selectedCamera, setSelectedCamera] = useState<string>("");
 	const [capabilities, setCapabilities] = useState<CameraCapabilities | null>(null);
 	const [settings, setSettings] = useState<CameraSettings>({});
+	const [pendingSettings, setPendingSettings] = useState<CameraSettings>({});
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string>("");
 	const [errorDetails, setErrorDetails] = useState<string>("");
 	const [capturedImage, setCapturedImage] = useState<string>("");
 	const [activeControl, setActiveControl] = useState<ActiveControl>(null);
+	const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const isLandscape = useOrientation();
 
 	// PWA install functionality disabled for now
 	// const [showInstallButton] = useState(false);
 	// const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 	// const [isApplePlatform, setIsApplePlatform] = useState(false);
+
+	// Debounced function to apply camera settings
+	const applySettingsDebounced = useCallback((newSettings: CameraSettings) => {
+		if (debounceTimeoutRef.current) {
+			clearTimeout(debounceTimeoutRef.current);
+		}
+		
+		debounceTimeoutRef.current = setTimeout(async () => {
+			if (stream && selectedCamera) {
+				try {
+					stopCamera(stream);
+					const newStream = await startCamera(newSettings, selectedCamera);
+					setStream(newStream);
+					if (videoRef.current) {
+						videoRef.current.srcObject = newStream;
+					}
+					setSettings(newSettings);
+				} catch (err) {
+					console.error("Failed to apply settings:", err);
+				}
+			}
+		}, 500); // 500ms debounce delay
+	}, [stream, selectedCamera]);
+
+	// Cleanup debounce timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (debounceTimeoutRef.current) {
+				clearTimeout(debounceTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	// Load available cameras on mount
 	useEffect(() => {
@@ -139,6 +173,7 @@ export default function CameraPage() {
 					defaultSettings.whiteBalanceMode = caps.whiteBalanceMode[0];
 				}
 				setSettings(defaultSettings);
+				setPendingSettings(defaultSettings);
 
 				// Start camera stream
 				const mediaStream = await startCamera(defaultSettings, selectedCamera);
@@ -202,8 +237,8 @@ export default function CameraPage() {
 		setSelectedCamera(deviceId);
 	};
 
-	const handleSettingChange = async (key: keyof CameraSettings, value: number | string) => {
-		const newSettings = { ...settings, [key]: value };
+	const handleSettingChange = (key: keyof CameraSettings, value: number | string) => {
+		const newSettings = { ...pendingSettings, [key]: value };
 
 		// When color temperature is changed, automatically switch to manual WB mode
 		if (key === "colorTemperature" && capabilities?.whiteBalanceMode?.includes("manual")) {
@@ -220,21 +255,11 @@ export default function CameraPage() {
 			newSettings.focusMode = "manual";
 		}
 
-		setSettings(newSettings);
+		// Update pending settings immediately for UI responsiveness
+		setPendingSettings(newSettings);
 
-		// Apply settings to camera
-		if (stream && selectedCamera) {
-			try {
-				stopCamera(stream);
-				const newStream = await startCamera(newSettings, selectedCamera);
-				setStream(newStream);
-				if (videoRef.current) {
-					videoRef.current.srcObject = newStream;
-				}
-			} catch (err) {
-				console.error("Failed to apply settings:", err);
-			}
-		}
+		// Apply settings to camera with debounce
+		applySettingsDebounced(newSettings);
 	};
 
 	const handleCapture = () => {
@@ -348,7 +373,7 @@ export default function CameraPage() {
 
 			{/* Portrait Mode: Top Bar with Lens and Resolution */}
 			{!isLandscape && (
-				<div className="absolute left-0 right-0 top-0 bg-gradient-to-b from-black/80 to-transparent p-3">
+				<div className="absolute left-0 right-0 top-0 p-3">
 					<div className="flex items-center justify-between">
 						{/* Camera/Lens Selector */}
 						<select
@@ -385,7 +410,7 @@ export default function CameraPage() {
 										</svg>
 									</div>
 									<span className="text-xs font-semibold">
-										{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
+										{getAspectRatio(pendingSettings.width ?? capabilities.width.max, pendingSettings.height ?? capabilities.height.max)}
 									</span>
 								</div>
 							)}
@@ -396,7 +421,7 @@ export default function CameraPage() {
 
 			{/* Landscape Mode: Lens + Settings + Resolution all in one row */}
 			{isLandscape && (
-				<div className="absolute left-0 right-0 top-2 flex w-full items-center justify-between gap-2 bg-gradient-to-b from-black/80 to-transparent px-2 py-2">
+				<div className="absolute left-0 right-0 top-2 flex w-full items-center justify-between gap-2 px-2 py-2">
 					{/* Camera/Lens Selector */}
 					<select
 						value={selectedCamera}
@@ -421,7 +446,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">FPS</span>
-								<span className="text-xs font-semibold">{settings.frameRate ?? capabilities.frameRate.max}</span>
+								<span className="text-xs font-semibold">{pendingSettings.frameRate ?? capabilities.frameRate.max}</span>
 							</button>
 						)}
 
@@ -435,7 +460,7 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">ISO</span>
 								<span className="text-xs font-semibold">
-									{settings.iso ? settings.iso : "Auto"}
+									{pendingSettings.iso ? pendingSettings.iso : "Auto"}
 								</span>
 							</button>
 						)}
@@ -450,7 +475,7 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">WB</span>
 								<span className="text-xs font-semibold">
-									{settings.whiteBalanceMode === "continuous" ? "Auto" : settings.colorTemperature ?? "Auto"}
+									{pendingSettings.whiteBalanceMode === "continuous" ? "Auto" : pendingSettings.colorTemperature ?? "Auto"}
 								</span>
 							</button>
 						)}
@@ -464,7 +489,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">EV</span>
-								<span className="text-xs font-semibold">{settings.exposureCompensation ?? 0}</span>
+								<span className="text-xs font-semibold">{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}</span>
 							</button>
 						)}
 
@@ -477,7 +502,7 @@ export default function CameraPage() {
 								}`}
 							>
 								<span className="text-[10px] text-blue-400">ZOOM</span>
-								<span className="text-xs font-semibold">{settings.zoom?.toFixed(1) ?? capabilities.zoom.min}x</span>
+								<span className="text-xs font-semibold">{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
 							</button>
 						)}
 
@@ -489,11 +514,11 @@ export default function CameraPage() {
 									activeControl === "focusDistance" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
-								{settings.focusMode === "manual" ? (
+								{pendingSettings.focusMode === "manual" ? (
 									<>
 										<span className="text-[10px] text-blue-400">MF</span>
 										<span className="text-xs font-semibold">
-											{settings.focusDistance?.toFixed(1) ?? capabilities.focusDistance.min.toFixed(1)}
+											{(pendingSettings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}
 										</span>
 									</>
 								) : (
@@ -512,9 +537,9 @@ export default function CameraPage() {
 							>
 								<span className="text-[10px] text-blue-400">SHUTTER</span>
 								<span className="text-xs font-semibold">
-									{settings.exposureMode === "continuous"
+									{pendingSettings.exposureMode === "continuous"
 										? "Auto"
-										: `1/${Math.round(1000 / (settings.exposureTime ?? capabilities.exposureTime.min))}`
+										: `1/${Math.round(1000 / (pendingSettings.exposureTime ?? capabilities.exposureTime.min))}`
 									}
 								</span>
 							</button>
@@ -542,9 +567,9 @@ export default function CameraPage() {
 										<rect x="1" y="1" width="22" height="14" rx="1" />
 									</svg>
 								</div>
-								<span className="text-xs font-semibold">
-									{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
-								</span>
+							<span className="text-xs font-semibold">
+								{getAspectRatio(pendingSettings.width ?? capabilities.width.max, pendingSettings.height ?? capabilities.height.max)}
+							</span>
 							</div>
 						)}
 					</div>
@@ -563,7 +588,7 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">FPS</span>
-						<span className="text-xs font-semibold">{settings.frameRate ?? capabilities.frameRate.max}</span>
+						<span className="text-xs font-semibold">{pendingSettings.frameRate ?? capabilities.frameRate.max}</span>
 					</button>
 				)}
 
@@ -576,9 +601,9 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">ISO</span>
-						<span className="text-xs font-semibold">
-							{settings.iso ? settings.iso : "Auto"}
-						</span>
+					<span className="text-xs font-semibold">
+						{pendingSettings.iso ? pendingSettings.iso : "Auto"}
+					</span>
 					</button>
 				)}
 
@@ -591,9 +616,9 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">WB</span>
-						<span className="text-xs font-semibold">
-							{settings.whiteBalanceMode === "continuous" ? "Auto" : settings.colorTemperature ?? "Auto"}
-						</span>
+					<span className="text-xs font-semibold">
+						{pendingSettings.whiteBalanceMode === "continuous" ? "Auto" : pendingSettings.colorTemperature ?? "Auto"}
+					</span>
 					</button>
 				)}
 
@@ -606,7 +631,7 @@ export default function CameraPage() {
 						}`}
 					>
 						<span className="text-[10px] text-blue-400">EV</span>
-						<span className="text-xs font-semibold">{settings.exposureCompensation ?? 0}</span>
+						<span className="text-xs font-semibold">{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}</span>
 					</button>
 				)}
 
@@ -618,9 +643,9 @@ export default function CameraPage() {
 							activeControl === "zoom" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
-						<span className="text-[10px] text-blue-400">ZOOM</span>
-						<span className="text-xs font-semibold">{settings.zoom?.toFixed(1) ?? capabilities.zoom.min}x</span>
-					</button>
+					<span className="text-[10px] text-blue-400">ZOOM</span>
+					<span className="text-xs font-semibold">{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x</span>
+				</button>
 				)}
 
 				{/* Focus Distance */}
@@ -635,7 +660,7 @@ export default function CameraPage() {
 							<>
 								<span className="text-[10px] text-blue-400">MF</span>
 								<span className="text-xs font-semibold">
-									{settings.focusDistance?.toFixed(1) ?? capabilities.focusDistance.min.toFixed(1)}
+									{(settings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}
 								</span>
 							</>
 						) : (
@@ -688,13 +713,13 @@ export default function CameraPage() {
 								min={capabilities.frameRate.min}
 								max={capabilities.frameRate.max}
 								step={1}
-								value={settings.frameRate ?? capabilities.frameRate.max}
+								value={pendingSettings.frameRate ?? capabilities.frameRate.max}
 								onChange={(e) => handleSettingChange("frameRate", Number(e.target.value))}
 								className="w-48 accent-blue-500"
 							/>
-							<span className="text-sm font-semibold">
-								{settings.frameRate ?? capabilities.frameRate.max}
-							</span>
+						<span className="text-sm font-semibold">
+							{pendingSettings.frameRate ?? capabilities.frameRate.max}
+						</span>
 						</div>
 					)}
 
@@ -706,13 +731,13 @@ export default function CameraPage() {
 								min={capabilities.iso.min}
 								max={capabilities.iso.max}
 								step={capabilities.iso.step}
-								value={settings.iso ?? capabilities.iso.min}
-								onChange={(e) => handleSettingChange("iso", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								{settings.iso ? settings.iso : "Auto"}
-							</span>
+							value={pendingSettings.iso ?? capabilities.iso.min}
+							onChange={(e) => handleSettingChange("iso", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							{pendingSettings.iso ? pendingSettings.iso : "Auto"}
+						</span>
 						</div>
 					)}
 
@@ -724,13 +749,13 @@ export default function CameraPage() {
 								min={capabilities.colorTemperature.min}
 								max={capabilities.colorTemperature.max}
 								step={capabilities.colorTemperature.step}
-								value={settings.colorTemperature ?? 5600}
-								onChange={(e) => handleSettingChange("colorTemperature", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								{settings.colorTemperature ?? 5600}K
-							</span>
+							value={pendingSettings.colorTemperature ?? 5600}
+							onChange={(e) => handleSettingChange("colorTemperature", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							{pendingSettings.colorTemperature ?? 5600}K
+						</span>
 						</div>
 					)}
 
@@ -742,13 +767,13 @@ export default function CameraPage() {
 								min={capabilities.exposureCompensation.min}
 								max={capabilities.exposureCompensation.max}
 								step={capabilities.exposureCompensation.step}
-								value={settings.exposureCompensation ?? 0}
-								onChange={(e) => handleSettingChange("exposureCompensation", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								{settings.exposureCompensation ?? 0}
-							</span>
+							value={pendingSettings.exposureCompensation ?? 0}
+							onChange={(e) => handleSettingChange("exposureCompensation", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							{(pendingSettings.exposureCompensation ?? 0).toFixed(1)}
+						</span>
 						</div>
 					)}
 
@@ -760,17 +785,17 @@ export default function CameraPage() {
 								min={capabilities.focusDistance.min}
 								max={capabilities.focusDistance.max}
 								step={capabilities.focusDistance.step}
-								value={settings.focusDistance ?? capabilities.focusDistance.min}
-								onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								{settings.focusDistance?.toFixed(2) ?? capabilities.focusDistance.min.toFixed(2)}m
-							</span>
-						</div>
-					)}
+							value={pendingSettings.focusDistance ?? capabilities.focusDistance.min}
+							onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							{(pendingSettings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}m
+						</span>
+					</div>
+				)}
 
-					{activeControl === "exposureTime" && capabilities?.exposureTime && (
+				{activeControl === "exposureTime" && capabilities?.exposureTime && (
 						<div className="flex flex-row items-center gap-2">
 							<span className="text-xs text-blue-400">SHUTTER</span>
 							<input
@@ -778,13 +803,13 @@ export default function CameraPage() {
 								min={capabilities.exposureTime.min}
 								max={capabilities.exposureTime.max}
 								step={capabilities.exposureTime.step}
-								value={settings.exposureTime ?? capabilities.exposureTime.min}
-								onChange={(e) => handleSettingChange("exposureTime", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								1/{Math.round(1000 / (settings.exposureTime ?? capabilities.exposureTime.min))}
-							</span>
+							value={pendingSettings.exposureTime ?? capabilities.exposureTime.min}
+							onChange={(e) => handleSettingChange("exposureTime", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							1/{Math.round(1000 / (pendingSettings.exposureTime ?? capabilities.exposureTime.min))}
+						</span>
 						</div>
 					)}
 
@@ -796,20 +821,18 @@ export default function CameraPage() {
 								min={capabilities.zoom.min}
 								max={capabilities.zoom.max}
 								step={capabilities.zoom.step}
-								value={settings.zoom ?? capabilities.zoom.min}
-								onChange={(e) => handleSettingChange("zoom", Number(e.target.value))}
-								className="w-48 accent-blue-500"
-							/>
-							<span className="text-sm font-semibold">
-								{settings.zoom?.toFixed(1) ?? capabilities.zoom.min}x
-							</span>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Bottom Control Bar */}
-			<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+							value={pendingSettings.zoom ?? capabilities.zoom.min}
+							onChange={(e) => handleSettingChange("zoom", Number(e.target.value))}
+							className="w-48 accent-blue-500"
+						/>
+						<span className="text-sm font-semibold">
+							{(pendingSettings.zoom ?? capabilities.zoom.min).toFixed(1)}x
+						</span>
+					</div>
+				)}
+			</div>
+			)}			{/* Bottom Control Bar */}
+			<div className="absolute bottom-0 left-0 right-0 p-4">
 				<div className="flex items-center justify-center">
 					{/* Center Capture Button */}
 					<button
