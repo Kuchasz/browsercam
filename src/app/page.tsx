@@ -1,68 +1,65 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
-import { getCameraCapabilities, isCameraAvailable, requestCameraPermissions } from "@cc/lib/camera";
 
 export default function HomePage() {
-	useEffect(() => {
-		async function logCameraCapabilities() {
-			try {
-				const available = await isCameraAvailable();
-				console.log("Camera available:", available);
-
-				if (!available) {
-					console.log("No camera device found");
-					return;
-				}
-
-				const hasPermission = await requestCameraPermissions();
-				console.log("Camera permission granted:", hasPermission);
-
-				if (!hasPermission) {
-					console.log("Camera permission denied");
-					return;
-				}
-
-				const capabilities = await getCameraCapabilities();
-				console.log("Camera capabilities:", capabilities);
-			} catch (error) {
-				console.error("Error getting camera capabilities:", error);
-			}
-		}
-
-		void logCameraCapabilities();
-	}, []);
-
 	return (
-		<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
+		<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1e] text-white">
 			<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-				<h1 className="font-extrabold text-5xl text-white tracking-tight sm:text-[5rem]">
-					Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-				</h1>
+				<div className="flex flex-col items-center gap-4">
+					<h1 className="font-extrabold text-5xl text-white tracking-tight sm:text-[5rem]">
+						Camera <span className="text-[hsl(200,100%,70%)]">Checker</span>
+					</h1>
+					<p className="max-w-2xl text-center text-xl text-white/70">
+						Test and configure camera capabilities in your browser. Check settings like frame rate, ISO, focus, and more.
+					</p>
+				</div>
+
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
 					<Link
-						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-						href="https://create.t3.gg/en/usage/first-steps"
-						target="_blank"
+						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-6 text-white transition-all hover:bg-white/20 hover:scale-105"
+						href="/camera"
 					>
-						<h3 className="font-bold text-2xl">First Steps →</h3>
+						<h3 className="font-bold text-2xl">Camera Preview →</h3>
 						<div className="text-lg">
-							Just the basics - Everything you need to know to set up your
-							database and authentication.
+							Access live camera preview with full control over settings like ISO,
+							frame rate, focus, and exposure. Capture photos with custom configurations.
 						</div>
 					</Link>
 					<Link
-						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-						href="https://create.t3.gg/en/introduction"
-						target="_blank"
+						className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-6 text-white transition-all hover:bg-white/20 hover:scale-105"
+						href="/about"
 					>
-						<h3 className="font-bold text-2xl">Documentation →</h3>
+						<h3 className="font-bold text-2xl">About →</h3>
 						<div className="text-lg">
-							Learn more about Create T3 App, the libraries it uses, and how to
-							deploy it.
+							Learn more about Camera Checker, its features, and view the source
+							code on GitHub.
 						</div>
 					</Link>
+				</div>
+
+				<div className="mt-8 rounded-lg bg-white/5 p-6 max-w-2xl">
+					<h2 className="font-bold text-xl mb-4 text-blue-400">Features</h2>
+					<ul className="space-y-2 text-white/80">
+						<li className="flex items-start gap-2">
+							<span className="text-blue-400 mt-1">•</span>
+							<span>Detect and display all available camera capabilities</span>
+						</li>
+						<li className="flex items-start gap-2">
+							<span className="text-blue-400 mt-1">•</span>
+							<span>Live camera preview with real-time settings adjustment</span>
+						</li>
+						<li className="flex items-start gap-2">
+							<span className="text-blue-400 mt-1">•</span>
+							<span>Control ISO, frame rate, focus distance, exposure, and more</span>
+						</li>
+						<li className="flex items-start gap-2">
+							<span className="text-blue-400 mt-1">•</span>
+							<span>Switch between multiple cameras/lenses</span>
+						</li>
+						<li className="flex items-start gap-2">
+							<span className="text-blue-400 mt-1">•</span>
+							<span>Capture and download photos with configured settings</span>
+						</li>
+					</ul>
 				</div>
 			</div>
 		</main>
