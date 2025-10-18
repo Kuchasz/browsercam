@@ -513,7 +513,7 @@ export default function CameraPage() {
 						{capabilities?.frameRate && (
 							<button
 								onClick={() => setActiveControl(activeControl === "frameRate" ? null : "frameRate")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "frameRate" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -526,7 +526,7 @@ export default function CameraPage() {
 						{capabilities?.iso && (
 							<button
 								onClick={() => setActiveControl(activeControl === "iso" ? null : "iso")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "iso" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -541,7 +541,7 @@ export default function CameraPage() {
 						{capabilities?.colorTemperature && (
 							<button
 								onClick={() => setActiveControl(activeControl === "colorTemperature" ? null : "colorTemperature")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "colorTemperature" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -556,7 +556,7 @@ export default function CameraPage() {
 						{capabilities?.exposureCompensation && (
 							<button
 								onClick={() => setActiveControl(activeControl === "exposureCompensation" ? null : "exposureCompensation")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "exposureCompensation" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -569,7 +569,7 @@ export default function CameraPage() {
 						{capabilities?.zoom && (
 							<button
 								onClick={() => setActiveControl(activeControl === "zoom" ? null : "zoom")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "zoom" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -582,7 +582,7 @@ export default function CameraPage() {
 						{capabilities?.focusDistance && (
 							<button
 								onClick={() => setActiveControl(activeControl === "focusDistance" ? null : "focusDistance")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "focusDistance" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -603,7 +603,7 @@ export default function CameraPage() {
 						{capabilities?.exposureTime && (
 							<button
 								onClick={() => setActiveControl(activeControl === "exposureTime" ? null : "exposureTime")}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									activeControl === "exposureTime" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -621,7 +621,7 @@ export default function CameraPage() {
 						{capabilities?.torch && (
 							<button
 								onClick={() => handleSettingChange("torch", !settings.torch)}
-								className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+								className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 									settings.torch ? "bg-yellow-600" : "bg-black/50 backdrop-blur-sm"
 								}`}
 							>
@@ -674,7 +674,7 @@ export default function CameraPage() {
 				{capabilities?.frameRate && (
 					<button
 						onClick={() => setActiveControl(activeControl === "frameRate" ? null : "frameRate")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "frameRate" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -687,7 +687,7 @@ export default function CameraPage() {
 				{capabilities?.iso && (
 					<button
 						onClick={() => setActiveControl(activeControl === "iso" ? null : "iso")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "iso" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -702,7 +702,7 @@ export default function CameraPage() {
 				{capabilities?.colorTemperature && (
 					<button
 						onClick={() => setActiveControl(activeControl === "colorTemperature" ? null : "colorTemperature")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "colorTemperature" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -717,7 +717,7 @@ export default function CameraPage() {
 				{capabilities?.exposureCompensation && (
 					<button
 						onClick={() => setActiveControl(activeControl === "exposureCompensation" ? null : "exposureCompensation")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "exposureCompensation" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -730,7 +730,7 @@ export default function CameraPage() {
 				{capabilities?.zoom && (
 					<button
 						onClick={() => setActiveControl(activeControl === "zoom" ? null : "zoom")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "zoom" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -743,7 +743,7 @@ export default function CameraPage() {
 				{capabilities?.focusDistance && (
 					<button
 						onClick={() => setActiveControl(activeControl === "focusDistance" ? null : "focusDistance")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "focusDistance" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -764,7 +764,7 @@ export default function CameraPage() {
 				{capabilities?.exposureTime && (
 					<button
 						onClick={() => setActiveControl(activeControl === "exposureTime" ? null : "exposureTime")}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							activeControl === "exposureTime" ? "bg-blue-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
@@ -782,7 +782,7 @@ export default function CameraPage() {
 				{capabilities?.torch && (
 					<button
 						onClick={() => handleSettingChange("torch", !settings.torch)}
-						className={`flex h-12 w-12 flex-col items-center justify-center rounded-full transition-all ${
+						className={`flex h-12 w-12 flex-col items-center justify-center rounded-xl transition-all ${
 							settings.torch ? "bg-yellow-600" : "bg-black/50 backdrop-blur-sm"
 						}`}
 					>
