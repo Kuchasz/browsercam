@@ -492,11 +492,11 @@ export async function applySettingsToStream(
     if (settings.width !== undefined) {
       mediaTrackConstraints.width = settings.width;
     }
-    if (settings.zoom !== undefined) {
-      mediaTrackConstraints.zoom = settings.zoom;
-    }
 
     // ImageCapture constraints (need to be handled differently)
+    if (settings.zoom !== undefined) {
+      imageCaptureSettings.zoom = settings.zoom;
+    }
     if (settings.colorTemperature !== undefined) {
       imageCaptureSettings.colorTemperature = settings.colorTemperature;
     }
