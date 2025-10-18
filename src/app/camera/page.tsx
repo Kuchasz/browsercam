@@ -168,12 +168,8 @@ export default function CameraPage() {
 				if (caps.frameRate) {
 					defaultSettings.frameRate = caps.frameRate.max;
 				}
-				// Set default resolution based on selected aspect ratio
-				const availableResolutions = getAvailableResolutions(caps, selectedAspectRatio);
-				if (availableResolutions.length > 0 && availableResolutions[0]) {
-					defaultSettings.width = availableResolutions[0].width;
-					defaultSettings.height = availableResolutions[0].height;
-				}
+				// Set aspect ratio directly
+				defaultSettings.aspectRatio = selectedAspectRatio;
 				// ISO is left undefined by default (auto mode)
 				// Set exposure mode to continuous by default (auto)
 				if (caps.exposureMode && caps.exposureMode.includes("continuous")) {
@@ -203,7 +199,7 @@ export default function CameraPage() {
 					videoRef.current.srcObject = mediaStream;
 					// Force video to load and play
 					try {
-						await videoRef.current.load();
+						videoRef.current.load(); // Force reload
 						await videoRef.current.play();
 					} catch (playErr) {
 						console.warn("Video play failed, trying again:", playErr);
@@ -211,6 +207,7 @@ export default function CameraPage() {
 						setTimeout(async () => {
 							if (videoRef.current && mounted) {
 								try {
+									videoRef.current.load(); // Force reload on retry
 									await videoRef.current.play();
 								} catch (retryErr) {
 									console.error("Video play retry failed:", retryErr);
@@ -267,6 +264,7 @@ export default function CameraPage() {
 	useEffect(() => {
 		if (stream && videoRef.current) {
 			videoRef.current.srcObject = stream;
+			videoRef.current.load(); // Force video element to reload
 			// Force video to play
 			videoRef.current.play().catch(err => {
 				console.warn("Video play failed:", err);
@@ -486,7 +484,7 @@ export default function CameraPage() {
 										</svg>
 									</div>
 									<span className="text-xs font-semibold">
-										{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
+										{selectedAspectRatio === 4/3 ? '4:3' : selectedAspectRatio === 1 ? '1:1' : selectedAspectRatio === 16/9 ? '16:9' : selectedAspectRatio === 21/9 ? '21:9' : `${selectedAspectRatio.toFixed(2)}`}
 									</span>
 								</button>
 							)}
@@ -663,7 +661,7 @@ export default function CameraPage() {
 									</svg>
 								</div>
 							<span className="text-xs font-semibold">
-								{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
+								{selectedAspectRatio === 4/3 ? '4:3' : selectedAspectRatio === 1 ? '1:1' : selectedAspectRatio === 16/9 ? '16:9' : selectedAspectRatio === 21/9 ? '21:9' : `${selectedAspectRatio.toFixed(2)}`}
 							</span>
 							</button>
 						)}
@@ -1077,8 +1075,9 @@ export default function CameraPage() {
 				)}
 
 				{activeControl === "aspectRatio" && (
-					<div className="flex flex-col gap-3">
+					<div className={`flex gap-3 ${isLandscape ? 'flex-row items-center' : 'flex-col'}`}>
 						<span className="text-sm font-semibold text-center">Aspect Ratio</span>
+						<div className={`flex gap-3 ${isLandscape ? 'flex-row' : 'flex-col'}`}>
 						{[
 							{ ratio: 4/3, name: "4:3" },
 							{ ratio: 1, name: "1:1" },
@@ -1088,12 +1087,13 @@ export default function CameraPage() {
 							const availableResolutions = getAvailableResolutions(capabilities, ratio);
 							if (availableResolutions.length === 0) return null;
 							
+							const highestRes = availableResolutions[0];
+							
 							return (
 								<button
 									key={name}
 									onClick={async () => {
 										setSelectedAspectRatio(ratio);
-										const highestRes = availableResolutions[0];
 										if (highestRes && stream && selectedCamera) {
 											setActiveControl(null);
 											setIsLoading(true);
@@ -1103,11 +1103,16 @@ export default function CameraPage() {
 												stopCamera(stream);
 												setStream(null);
 												
-												// Update settings with new resolution
+												// Clear video element
+												if (videoRef.current) {
+													videoRef.current.srcObject = null;
+													videoRef.current.load();
+												}
+												
+												// Update settings with new aspect ratio
 												const newSettings = { 
 													...settings, 
-													width: highestRes.width, 
-													height: highestRes.height 
+													aspectRatio: ratio 
 												};
 												setSettings(newSettings);
 												
@@ -1115,8 +1120,11 @@ export default function CameraPage() {
 												const newStream = await startCamera(newSettings, selectedCamera);
 												setStream(newStream);
 												
+												// Assign new stream to video element and force reload
 												if (videoRef.current) {
 													videoRef.current.srcObject = newStream;
+													videoRef.current.load(); // Force video element to reload
+													
 													try {
 														await videoRef.current.play();
 													} catch (playErr) {
@@ -1143,16 +1151,22 @@ export default function CameraPage() {
 											setActiveControl(null);
 										}
 									}}
-									className={`px-4 py-2 rounded-lg transition-colors ${
+									className={`px-4 py-2 rounded-lg transition-colors flex flex-col items-center gap-1 ${
 										Math.abs(selectedAspectRatio - ratio) < 0.01
 											? "bg-blue-600 text-white"
 											: "bg-white/10 hover:bg-white/20 text-white"
 									}`}
 								>
 									<span className="font-semibold">{name}</span>
+									{highestRes && (
+										<span className="text-xs text-white/70">
+											{highestRes.width}×{highestRes.height}
+										</span>
+									)}
 								</button>
 							);
 						})}
+						</div>
 					</div>
 				)}
 					</div>

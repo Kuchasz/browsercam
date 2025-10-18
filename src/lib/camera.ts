@@ -313,8 +313,11 @@ export async function startCamera(
       video: {
         ...(deviceId && { deviceId: { exact: deviceId } }),
         ...(settings?.frameRate && { frameRate: settings.frameRate }),
-        ...(settings?.width && { width: settings.width }),
-        ...(settings?.height && { height: settings.height }),
+        ...(settings?.width && { width: { ideal: settings.width } }),
+        ...(settings?.height && { height: { ideal: settings.height } }),
+        ...(settings?.aspectRatio && {
+          aspectRatio: { ideal: settings.aspectRatio },
+        }),
       },
     };
 
@@ -329,9 +332,9 @@ export async function startCamera(
     if (settings) {
       const advancedConstraints: MediaTrackConstraints = {};
 
-      if (settings.aspectRatio !== undefined) {
-        advancedConstraints.aspectRatio = settings.aspectRatio;
-      }
+    //   if (settings.aspectRatio !== undefined) {
+    //     advancedConstraints.aspectRatio = settings.aspectRatio;
+    //   }
 
       if (settings.colorTemperature !== undefined) {
         advancedConstraints.colorTemperature = settings.colorTemperature;
