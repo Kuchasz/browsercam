@@ -258,7 +258,7 @@ export default function CameraPage() {
 				stopCamera(stream);
 			}
 		};
-	}, [selectedCamera, selectedAspectRatio]);
+	}, [selectedCamera]);
 
 	// Ensure video element displays the stream
 	useEffect(() => {
@@ -1094,21 +1094,10 @@ export default function CameraPage() {
 									key={name}
 									onClick={async () => {
 										setSelectedAspectRatio(ratio);
-										if (highestRes && stream && selectedCamera) {
-											setActiveControl(null);
-											setIsLoading(true);
-											
+										setActiveControl(null);
+										
+										if (stream) {
 											try {
-												// Stop current stream
-												stopCamera(stream);
-												setStream(null);
-												
-												// Clear video element
-												if (videoRef.current) {
-													videoRef.current.srcObject = null;
-													videoRef.current.load();
-												}
-												
 												// Update settings with new aspect ratio
 												const newSettings = { 
 													...settings, 
@@ -1116,39 +1105,38 @@ export default function CameraPage() {
 												};
 												setSettings(newSettings);
 												
-												// Start new stream with updated resolution
-												const newStream = await startCamera(newSettings, selectedCamera);
-												setStream(newStream);
-												
-												// Assign new stream to video element and force reload
-												if (videoRef.current) {
-													videoRef.current.srcObject = newStream;
-													videoRef.current.load(); // Force video element to reload
-													
-													try {
-														await videoRef.current.play();
-													} catch (playErr) {
-														console.warn("Video play failed, trying again:", playErr);
-														setTimeout(async () => {
-															if (videoRef.current) {
-																try {
-																	await videoRef.current.play();
-																} catch (retryErr) {
-																	console.error("Video play retry failed:", retryErr);
-																}
-															}
-														}, 100);
-													}
-												}
+												// Apply the new aspect ratio to the existing stream
+												await applySettingsToStream(stream, newSettings);
 											} catch (err) {
-												console.error("Failed to restart camera with new aspect ratio:", err);
-												setError("Failed to change aspect ratio");
-												setErrorDetails(err instanceof Error ? err.message : "Unknown error");
-											} finally {
-												setIsLoading(false);
+												console.error("Failed to apply new aspect ratio:", err);
+												// If applying settings fails, fall back to restarting the camera
+												try {
+													setIsLoading(true);
+													stopCamera(stream);
+													setStream(null);
+													
+													const newSettings = { 
+														...settings, 
+														aspectRatio: ratio 
+													};
+													setSettings(newSettings);
+													
+													const newStream = await startCamera(newSettings, selectedCamera);
+													setStream(newStream);
+													
+													if (videoRef.current) {
+														videoRef.current.srcObject = newStream;
+														videoRef.current.load();
+														await videoRef.current.play();
+													}
+												} catch (fallbackErr) {
+													console.error("Failed to restart camera with new aspect ratio:", fallbackErr);
+													setError("Failed to change aspect ratio");
+													setErrorDetails(fallbackErr instanceof Error ? fallbackErr.message : "Unknown error");
+												} finally {
+													setIsLoading(false);
+												}
 											}
-										} else {
-											setActiveControl(null);
 										}
 									}}
 									className={`px-4 py-2 rounded-lg transition-colors flex flex-col items-center gap-1 ${
