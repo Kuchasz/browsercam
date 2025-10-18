@@ -14,7 +14,7 @@ import {
 } from "@cc/lib/camera";
 import { useOrientation } from "@cc/lib/useOrientation";
 
-type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | "torch" | null;
+type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | "torch" | "aspectRatio" | null;
 
 // PWA install types - disabled for now
 // interface BeforeInstallPromptEvent extends Event {
@@ -60,6 +60,35 @@ function getAspectRatio(width: number, height: number): string {
 	return `${w}:${h}`;
 }
 
+function getAvailableResolutions(capabilities: CameraCapabilities | null, targetAspectRatio: number): Array<{width: number, height: number, label: string}> {
+	if (!capabilities?.width || !capabilities?.height) return [];
+	
+	const resolutions = [];
+	const minWidth = capabilities.width.min;
+	const maxWidth = capabilities.width.max;
+	const minHeight = capabilities.height.min;
+	const maxHeight = capabilities.height.max;
+	
+	// Generate resolutions that match the target aspect ratio
+	for (let width = minWidth; width <= maxWidth; width += 160) {
+		const height = Math.round(width / targetAspectRatio);
+		if (height >= minHeight && height <= maxHeight) {
+			resolutions.push({
+				width,
+				height,
+				label: `${width}×${height}`
+			});
+		}
+	}
+	
+	// Remove duplicates and sort by resolution
+	const unique = resolutions.filter((res, index, arr) => 
+		arr.findIndex(r => r.width === res.width && r.height === res.height) === index
+	);
+	
+	return unique.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+}
+
 export default function CameraPage() {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [stream, setStream] = useState<MediaStream | null>(null);
@@ -74,6 +103,7 @@ export default function CameraPage() {
 	const [activeControl, setActiveControl] = useState<ActiveControl>(null);
 	const [isPending, startTransition] = useTransition();
 	const isLandscape = useOrientation();
+	const [selectedAspectRatio, setSelectedAspectRatio] = useState<number>(16/9); // Default to 16:9
 
 	// Handle orientation change with smooth transition
 	useEffect(() => {
@@ -137,6 +167,12 @@ export default function CameraPage() {
 				const defaultSettings: CameraSettings = {};
 				if (caps.frameRate) {
 					defaultSettings.frameRate = caps.frameRate.max;
+				}
+				// Set default resolution based on selected aspect ratio
+				const availableResolutions = getAvailableResolutions(caps, selectedAspectRatio);
+				if (availableResolutions.length > 0 && availableResolutions[0]) {
+					defaultSettings.width = availableResolutions[0].width;
+					defaultSettings.height = availableResolutions[0].height;
 				}
 				// ISO is left undefined by default (auto mode)
 				// Set exposure mode to continuous by default (auto)
@@ -225,7 +261,7 @@ export default function CameraPage() {
 				stopCamera(stream);
 			}
 		};
-	}, [selectedCamera]);
+	}, [selectedCamera, selectedAspectRatio]);
 
 	// Ensure video element displays the stream
 	useEffect(() => {
@@ -396,13 +432,15 @@ export default function CameraPage() {
 	return (
 		<main className={`relative h-dvh w-screen overflow-hidden bg-black text-white transition-all duration-300 ease-out ${isPending ? 'opacity-90' : 'opacity-100'}`}>
 			{/* Video Preview */}
-			<video
-				ref={videoRef}
-				autoPlay
-				playsInline
-				muted
-				className="h-full w-full object-cover"
-			/>
+			<div className="flex h-full w-full items-center justify-center">
+				<video
+					ref={videoRef}
+					autoPlay
+					playsInline
+					muted
+					className="max-h-full max-w-full object-contain"
+				/>
+			</div>
 
 			{/* Portrait Mode: Top Bar with Lens and Resolution */}
 			{!isLandscape && (
@@ -436,7 +474,12 @@ export default function CameraPage() {
 
 							{/* Resolution Display */}
 							{capabilities?.width && capabilities?.height && (
-								<div className="flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2 backdrop-blur-sm">
+								<button 
+									onClick={() => setActiveControl(activeControl === "aspectRatio" ? null : "aspectRatio")}
+									className={`flex items-center gap-2 rounded-lg px-3 py-2 backdrop-blur-sm transition-colors ${
+										activeControl === "aspectRatio" ? "bg-blue-600" : "bg-black/50 hover:bg-black/70"
+									}`}
+								>
 									<div className="flex h-6 w-8 items-center justify-center rounded border border-white/30 bg-white/10">
 										<svg className="h-4 w-6 text-white/70" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
 											<rect x="1" y="1" width="22" height="14" rx="1" />
@@ -445,7 +488,7 @@ export default function CameraPage() {
 									<span className="text-xs font-semibold">
 										{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
 									</span>
-								</div>
+								</button>
 							)}
 						</div>
 					</div>
@@ -608,7 +651,12 @@ export default function CameraPage() {
 
 						{/* Resolution Display */}
 						{capabilities?.width && capabilities?.height && (
-							<div className="flex items-center gap-2 rounded-lg bg-black/50 px-3 py-2 backdrop-blur-sm">
+							<button 
+								onClick={() => setActiveControl(activeControl === "aspectRatio" ? null : "aspectRatio")}
+								className={`flex items-center gap-2 rounded-lg px-3 py-2 backdrop-blur-sm transition-colors ${
+									activeControl === "aspectRatio" ? "bg-blue-600" : "bg-black/50 hover:bg-black/70"
+								}`}
+							>
 								<div className="flex h-6 w-8 items-center justify-center rounded border border-white/30 bg-white/10">
 									<svg className="h-4 w-6 text-white/70" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.5">
 										<rect x="1" y="1" width="22" height="14" rx="1" />
@@ -617,7 +665,7 @@ export default function CameraPage() {
 							<span className="text-xs font-semibold">
 								{getAspectRatio(settings.width ?? capabilities.width.max, settings.height ?? capabilities.height.max)}
 							</span>
-							</div>
+							</button>
 						)}
 					</div>
 				</div>
@@ -1025,6 +1073,86 @@ export default function CameraPage() {
 						<span className="text-sm font-semibold">
 							{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x
 						</span>
+					</div>
+				)}
+
+				{activeControl === "aspectRatio" && (
+					<div className="flex flex-col gap-3">
+						<span className="text-sm font-semibold text-center">Aspect Ratio</span>
+						{[
+							{ ratio: 4/3, name: "4:3" },
+							{ ratio: 1, name: "1:1" },
+							{ ratio: 16/9, name: "16:9" },
+							{ ratio: 21/9, name: "21:9" }
+						].map(({ ratio, name }) => {
+							const availableResolutions = getAvailableResolutions(capabilities, ratio);
+							if (availableResolutions.length === 0) return null;
+							
+							return (
+								<button
+									key={name}
+									onClick={async () => {
+										setSelectedAspectRatio(ratio);
+										const highestRes = availableResolutions[0];
+										if (highestRes && stream && selectedCamera) {
+											setActiveControl(null);
+											setIsLoading(true);
+											
+											try {
+												// Stop current stream
+												stopCamera(stream);
+												setStream(null);
+												
+												// Update settings with new resolution
+												const newSettings = { 
+													...settings, 
+													width: highestRes.width, 
+													height: highestRes.height 
+												};
+												setSettings(newSettings);
+												
+												// Start new stream with updated resolution
+												const newStream = await startCamera(newSettings, selectedCamera);
+												setStream(newStream);
+												
+												if (videoRef.current) {
+													videoRef.current.srcObject = newStream;
+													try {
+														await videoRef.current.play();
+													} catch (playErr) {
+														console.warn("Video play failed, trying again:", playErr);
+														setTimeout(async () => {
+															if (videoRef.current) {
+																try {
+																	await videoRef.current.play();
+																} catch (retryErr) {
+																	console.error("Video play retry failed:", retryErr);
+																}
+															}
+														}, 100);
+													}
+												}
+											} catch (err) {
+												console.error("Failed to restart camera with new aspect ratio:", err);
+												setError("Failed to change aspect ratio");
+												setErrorDetails(err instanceof Error ? err.message : "Unknown error");
+											} finally {
+												setIsLoading(false);
+											}
+										} else {
+											setActiveControl(null);
+										}
+									}}
+									className={`px-4 py-2 rounded-lg transition-colors ${
+										Math.abs(selectedAspectRatio - ratio) < 0.01
+											? "bg-blue-600 text-white"
+											: "bg-white/10 hover:bg-white/20 text-white"
+									}`}
+								>
+									<span className="font-semibold">{name}</span>
+								</button>
+							);
+						})}
 					</div>
 				)}
 					</div>
