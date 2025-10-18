@@ -1005,10 +1005,9 @@ export default function CameraPage() {
 				</>
 			)}
 
-			{/* Bottom Control Bar */}
-			<div className="absolute bottom-0 left-0 right-0 p-4">
-				<div className="flex items-center justify-center">
-					{/* Center Capture Button */}
+			{/* Capture Button - Portrait mode: bottom center, Landscape mode: right side middle */}
+			{isLandscape ? (
+				<div className="absolute right-4 top-1/2 -translate-y-1/2">
 					<button
 						onClick={handleCapture}
 						className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-transparent transition-transform active:scale-95"
@@ -1016,8 +1015,18 @@ export default function CameraPage() {
 						<div className="h-16 w-16 rounded-full bg-white" />
 					</button>
 				</div>
-
-			</div>
+			) : (
+				<div className="absolute bottom-0 left-0 right-0 p-4">
+					<div className="flex items-center justify-center">
+						<button
+							onClick={handleCapture}
+							className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-transparent transition-transform active:scale-95"
+						>
+							<div className="h-16 w-16 rounded-full bg-white" />
+						</button>
+					</div>
+				</div>
+			)}
 
 			{/* Captured Image Preview Modal */}
 			{capturedImage && (
