@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useTransition } from "react";
 import {
 	type CameraCapabilities,
 	type CameraDevice,
@@ -72,7 +72,15 @@ export default function CameraPage() {
 	const [errorDetails, setErrorDetails] = useState<string>("");
 	const [capturedImage, setCapturedImage] = useState<string>("");
 	const [activeControl, setActiveControl] = useState<ActiveControl>(null);
+	const [isPending, startTransition] = useTransition();
 	const isLandscape = useOrientation();
+
+	// Handle orientation change with smooth transition
+	useEffect(() => {
+		startTransition(() => {
+			// Trigger re-render with transition for smooth UI reorganization
+		});
+	}, [isLandscape]);
 
 	// PWA install functionality disabled for now
 	// const [showInstallButton] = useState(false);
@@ -311,8 +319,25 @@ export default function CameraPage() {
 		setError("");
 		setErrorDetails("");
 		setIsLoading(true);
-		// Trigger re-initialization by updating selected camera
-		setSelectedCamera((prev) => prev);
+		
+		// Properly cleanup existing stream first
+		if (stream) {
+			stopCamera(stream);
+			setStream(null);
+		}
+		
+		// Reset capabilities and settings
+		setCapabilities(null);
+		setSettings({});
+		
+		// Force re-initialization by temporarily clearing and then setting the camera
+		const currentCamera = selectedCamera;
+		setSelectedCamera("");
+		
+		// Use setTimeout to ensure state updates are processed
+		setTimeout(() => {
+			setSelectedCamera(currentCamera);
+		}, 100);
 	};
 
 	const handleSwitchCamera = () => {
@@ -328,39 +353,40 @@ export default function CameraPage() {
 	};
 
 	if (error) {
+		// Get current lens name for display
+		const currentLensIndex = cameras.findIndex((c) => c.deviceId === selectedCamera);
+		const currentLensName = currentLensIndex >= 0 ? `Lens ${currentLensIndex + 1}` : 'Camera';
+		// Get next lens info for switch button
+		const nextLensIndex = cameras.length > 1 ? (currentLensIndex + 1) % cameras.length : -1;
+		const nextLensName = nextLensIndex >= 0 ? `Lens ${nextLensIndex + 1}` : 'Next Camera';
+
 		return (
-			<main className="flex min-h-screen items-center justify-center bg-black text-white">
-				<div className="flex max-w-md flex-col items-center gap-6 rounded-2xl bg-white/5 p-8 text-center backdrop-blur-lg">
-					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600/20">
-						<svg className="h-8 w-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<main className="flex min-h-screen items-center justify-center bg-black text-white p-4">
+				<div className="flex max-w-sm w-full flex-col items-center gap-4 rounded-2xl bg-white/5 p-6 text-center backdrop-blur-lg">
+					<div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-600/20">
+						<svg className="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
 						</svg>
 					</div>
 					<div>
-						<h2 className="mb-2 text-2xl font-bold text-white">{error}</h2>
-						<p className="text-white/70">{errorDetails}</p>
+						<h2 className="mb-1 text-lg font-bold text-white">{currentLensName}: {error}</h2>
+						<p className="text-sm text-white/70 leading-tight">{errorDetails}</p>
 					</div>
-					<div className="flex w-full flex-col gap-3">
+					<div className="flex w-full flex-col gap-2">
 						<button
 							onClick={handleRetry}
-							className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold transition-colors hover:bg-blue-700"
+							className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-blue-700"
 						>
-							Retry
+							Retry {currentLensName}
 						</button>
 						{cameras.length > 1 && (
 							<button
 								onClick={handleSwitchCamera}
-								className="w-full rounded-lg bg-white/10 px-6 py-3 font-semibold transition-colors hover:bg-white/20"
+								className="w-full rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-white/20"
 							>
-								Try Another Camera ({cameras.length} available)
+								Try {nextLensName} ({cameras.length} available)
 							</button>
 						)}
-						<a
-							href="/"
-							className="w-full rounded-lg bg-white/10 px-6 py-3 font-semibold transition-colors hover:bg-white/20"
-						>
-							Go Back
-						</a>
 					</div>
 				</div>
 			</main>
@@ -368,7 +394,7 @@ export default function CameraPage() {
 	}
 
 	return (
-		<main className="relative h-dvh w-screen overflow-hidden bg-black text-white">
+		<main className={`relative h-dvh w-screen overflow-hidden bg-black text-white transition-all duration-300 ease-out ${isPending ? 'opacity-90' : 'opacity-100'}`}>
 			{/* Video Preview */}
 			<video
 				ref={videoRef}
@@ -380,7 +406,7 @@ export default function CameraPage() {
 
 			{/* Portrait Mode: Top Bar with Lens and Resolution */}
 			{!isLandscape && (
-				<div className="absolute left-0 right-0 top-0 p-3">
+				<div className="absolute left-0 right-0 top-0 p-3 transition-all duration-300 ease-out transform">
 					<div className="flex items-center justify-between">
 						{/* Camera/Lens Selector */}
 						<select
@@ -428,7 +454,7 @@ export default function CameraPage() {
 
 			{/* Landscape Mode: Lens + Settings + Resolution all in one row */}
 			{isLandscape && (
-				<div className="absolute left-0 right-0 top-2 flex w-full items-center justify-between gap-2 px-2 py-2">
+				<div className="absolute left-0 right-0 top-2 flex w-full items-center justify-between gap-2 px-2 py-2 transition-all duration-300 ease-out transform">
 					{/* Camera/Lens Selector */}
 					<select
 						value={selectedCamera}
@@ -599,7 +625,7 @@ export default function CameraPage() {
 
 			{/* Portrait Mode: Side Controls on the right */}
 			{!isLandscape && (
-				<div className="absolute right-4 top-20 flex flex-col items-center gap-3">
+				<div className="absolute right-4 top-20 flex flex-col items-center gap-3 transition-all duration-300 ease-out transform">
 				{/* Frame Rate */}
 				{capabilities?.frameRate && (
 					<button
@@ -1007,7 +1033,7 @@ export default function CameraPage() {
 
 			{/* Capture Button - Portrait mode: bottom center, Landscape mode: right side middle */}
 			{isLandscape ? (
-				<div className="absolute right-4 top-1/2 -translate-y-1/2">
+				<div className="absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ease-out transform">
 					<button
 						onClick={handleCapture}
 						className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-transparent transition-transform active:scale-95"
@@ -1016,7 +1042,7 @@ export default function CameraPage() {
 					</button>
 				</div>
 			) : (
-				<div className="absolute bottom-0 left-0 right-0 p-4">
+				<div className="absolute bottom-0 left-0 right-0 p-4 transition-all duration-300 ease-out transform">
 					<div className="flex items-center justify-center">
 						<button
 							onClick={handleCapture}
