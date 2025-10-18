@@ -105,11 +105,19 @@ export default function CameraPage() {
 		if (!selectedCamera) return;
 
 		let mounted = true;
+		let timeoutId: NodeJS.Timeout;
 
 		async function initCamera() {
 			try {
 				setIsLoading(true);
 				setError("");
+
+				// Add a small delay to ensure proper camera initialization
+				await new Promise(resolve => {
+					timeoutId = setTimeout(resolve, 100);
+				});
+
+				if (!mounted) return;
 
 				// Get capabilities first
 				const caps = await getCameraCapabilities(selectedCamera);
@@ -152,9 +160,26 @@ export default function CameraPage() {
 
 				setStream(mediaStream);
 
-				// Attach to video element
+				// Attach to video element with retry logic
 				if (videoRef.current) {
 					videoRef.current.srcObject = mediaStream;
+					// Force video to load and play
+					try {
+						await videoRef.current.load();
+						await videoRef.current.play();
+					} catch (playErr) {
+						console.warn("Video play failed, trying again:", playErr);
+						// Retry after a short delay
+						setTimeout(async () => {
+							if (videoRef.current && mounted) {
+								try {
+									await videoRef.current.play();
+								} catch (retryErr) {
+									console.error("Video play retry failed:", retryErr);
+								}
+							}
+						}, 100);
+					}
 				}
 			} catch (err) {
 				if (mounted) {
@@ -191,11 +216,25 @@ export default function CameraPage() {
 		// Cleanup on unmount or camera change
 		return () => {
 			mounted = false;
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+			}
 			if (stream) {
 				stopCamera(stream);
 			}
 		};
 	}, [selectedCamera]);
+
+	// Ensure video element displays the stream
+	useEffect(() => {
+		if (stream && videoRef.current) {
+			videoRef.current.srcObject = stream;
+			// Force video to play
+			videoRef.current.play().catch(err => {
+				console.warn("Video play failed:", err);
+			});
+		}
+	}, [stream]);
 
 	const handleCameraChange = (deviceId: string) => {
 		if (stream) {
