@@ -7,6 +7,19 @@ export const metadata: Metadata = {
 	title: "Camera Checker",
 	description: "Test and configure camera capabilities in the browser",
 	icons: [{ rel: "icon", url: "/favicon.ico" }],
+	manifest: "/manifest.json",
+	themeColor: "#000000",
+	appleWebApp: {
+		capable: true,
+		statusBarStyle: "black-translucent",
+		title: "Camera Checker",
+	},
+	viewport: {
+		width: "device-width",
+		initialScale: 1,
+		maximumScale: 1,
+		userScalable: false,
+	},
 };
 
 const geist = Geist({
