@@ -14,7 +14,7 @@ import {
 } from "@cc/lib/camera";
 import { useOrientation } from "@cc/lib/useOrientation";
 
-type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | "torch" | "aspectRatio" | null;
+type ActiveControl = "focusDistance" | "exposureTime" | "zoom" | "iso" | "colorTemperature" | "exposureCompensation" | "frameRate" | "torch" | "aspectRatio" | "lens" | null;
 
 // PWA install types - disabled for now
 // interface BeforeInstallPromptEvent extends Event {
@@ -443,21 +443,19 @@ export default function CameraPage() {
 			{/* Portrait Mode: Top Bar with Lens and Resolution */}
 			{!isLandscape && (
 				<div className="absolute left-0 right-0 top-0 p-3 transition-all duration-300 ease-out transform">
-					<div className="flex items-center justify-between">
-						{/* Camera/Lens Selector */}
-						<select
-							value={selectedCamera}
-							onChange={(e) => handleCameraChange(e.target.value)}
-							className="rounded-lg bg-black/50 px-3 py-2 text-sm backdrop-blur-sm hover:bg-black/70"
-						>
-							{cameras.map((camera, index) => (
-								<option key={camera.deviceId} value={camera.deviceId}>
-									Lens {index + 1}
-								</option>
-							))}
-						</select>
-
-						<div className="flex items-center gap-2">
+				<div className="flex items-center justify-between">
+					{/* Camera/Lens Selector */}
+					<button
+						onClick={() => setActiveControl(activeControl === "lens" ? null : "lens")}
+						className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm backdrop-blur-sm transition-colors ${
+							activeControl === "lens" ? "bg-blue-600" : "bg-black/50 hover:bg-black/70"
+						}`}
+					>
+						<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+						</svg>
+						<span>Lens {cameras.findIndex(c => c.deviceId === selectedCamera) + 1}</span>
+					</button>						<div className="flex items-center gap-2">
 							{/* PWA Install Button - disabled for now */}
 							{/* {showInstallButton && (
 								<button
@@ -497,17 +495,17 @@ export default function CameraPage() {
 			{isLandscape && (
 				<div className="absolute left-0 right-0 top-2 flex w-full items-center justify-between gap-2 px-2 py-2 transition-all duration-300 ease-out transform">
 					{/* Camera/Lens Selector */}
-					<select
-						value={selectedCamera}
-						onChange={(e) => handleCameraChange(e.target.value)}
-						className="rounded-lg bg-black/50 px-3 py-2 text-sm backdrop-blur-sm hover:bg-black/70"
+					<button
+						onClick={() => setActiveControl(activeControl === "lens" ? null : "lens")}
+						className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm backdrop-blur-sm transition-colors ${
+							activeControl === "lens" ? "bg-blue-600" : "bg-black/50 hover:bg-black/70"
+						}`}
 					>
-						{cameras.map((camera, index) => (
-							<option key={camera.deviceId} value={camera.deviceId}>
-								Lens {index + 1}
-							</option>
-						))}
-					</select>
+						<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+						</svg>
+						<span>Lens {cameras.findIndex(c => c.deviceId === selectedCamera) + 1}</span>
+					</button>
 
 					{/* Settings controls in the center */}
 					<div className="flex items-center gap-3">
@@ -796,257 +794,227 @@ export default function CameraPage() {
 				</div>
 			)}
 
-			{/* Slider Control Panel */}
+			{/* Sliding Control Panel */}
 			{activeControl && (
 				<>
 					{/* Backdrop overlay to capture outside clicks */}
 					<div 
-						className="fixed inset-0 z-40"
+						className="fixed inset-0 z-40 bg-black/20"
 						onClick={() => setActiveControl(null)}
 					/>
 					
-					{/* Modal content */}
-					<div className={`absolute z-50 ${
-						isLandscape
-							? "left-1/2 top-20 -translate-x-1/2 flex-col-reverse"
-							: "bottom-32 left-1/2 -translate-x-1/2 flex-col-reverse"
-					} flex items-center gap-4 rounded-2xl bg-black/80 p-4 backdrop-blur-lg`}>
-					<button
-						onClick={() => setActiveControl(null)}
-						className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 hover:bg-white/30"
+					{/* Sliding panel */}
+					<div 
+						className={`fixed z-50 left-0 right-0 bg-black/90 backdrop-blur-xl transition-all duration-300 ease-out ${
+							isLandscape
+								? "bottom-0 rounded-t-3xl"
+								: "top-0 rounded-b-3xl"
+						}`}
+						style={{
+							animation: isLandscape 
+								? 'slide-up 0.3s ease-out' 
+								: 'slide-down 0.3s ease-out'
+						}}
 					>
-						<svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-						</svg>
-					</button>
+						{/* Handle bar */}
+						<div className={`flex justify-center ${
+							isLandscape ? "py-3" : "py-3 order-last"
+						}`}>
+							<div className="w-12 h-1 bg-white/30 rounded-full" />
+						</div>
+						
+						{/* Content */}
+						<div className="px-6 pb-6 pt-2">
 
 					{activeControl === "frameRate" && capabilities?.frameRate && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">FPS</span>
-							<input
-								type="range"
-								min={capabilities.frameRate.min}
-								max={capabilities.frameRate.max}
-								step={1}
-							value={settings.frameRate ?? capabilities.frameRate.max}
-							onChange={(e) => handleSettingChange("frameRate", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{settings.frameRate ?? capabilities.frameRate.max}
-						</span>
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">FPS</span>
+								<input
+									type="range"
+									min={capabilities.frameRate.min}
+									max={capabilities.frameRate.max}
+									step={1}
+								value={settings.frameRate ?? capabilities.frameRate.max}
+								onChange={(e) => handleSettingChange("frameRate", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{settings.frameRate ?? capabilities.frameRate.max}
+							</span>
+							</div>
+							<span className="text-xs text-white/60">Frame Rate</span>
 						</div>
 					)}
 
 					{activeControl === "iso" && capabilities?.iso && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">ISO</span>
-							<input
-								type="range"
-								min={capabilities.iso.min}
-								max={capabilities.iso.max}
-								step={capabilities.iso.step}
-							value={settings.iso ?? capabilities.iso.min}
-							onChange={(e) => handleSettingChange("iso", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{settings.iso ? settings.iso : "Auto"}
-						</span>
-						<button
-							onClick={() => {
-								const newSettings = { ...settings };
-								delete newSettings.iso;
-								
-								// Only set to continuous if both exposureTime and iso will be cleared
-								if (!newSettings.exposureTime) {
-									newSettings.exposureMode = "continuous";
-								}
-								
-								setSettings(newSettings);
-								
-								// Apply settings without restarting camera
-								if (stream) {
-									(async () => {
-										try {
-											await applySettingsToStream(stream, newSettings);
-										} catch (err) {
-											console.error("Failed to apply auto ISO settings:", err);
-										}
-									})();
-								}
-							}}
-							disabled={!settings.iso}
-							className={`text-sm transition-colors ${
-								!settings.iso
-									? "text-white/40 cursor-not-allowed" 
-									: "text-blue-400 hover:text-blue-300 cursor-pointer"
-							}`}
-						>
-							Auto
-						</button>
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">ISO</span>
+								<input
+									type="range"
+									min={capabilities.iso.min}
+									max={capabilities.iso.max}
+									step={capabilities.iso.step}
+								value={settings.iso ?? capabilities.iso.min}
+								onChange={(e) => handleSettingChange("iso", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{settings.iso ? settings.iso : "Auto"}
+							</span>
+							<button
+								onClick={() => {
+									const newSettings = { ...settings };
+									delete newSettings.iso;
+									
+									// Only set to continuous if both exposureTime and iso will be cleared
+									if (!newSettings.exposureTime) {
+										newSettings.exposureMode = "continuous";
+									}
+									
+									setSettings(newSettings);
+									
+									// Apply settings without restarting camera
+									if (stream) {
+										(async () => {
+											try {
+												await applySettingsToStream(stream, newSettings);
+											} catch (err) {
+												console.error("Failed to apply auto ISO settings:", err);
+											}
+										})();
+									}
+								}}
+								disabled={!settings.iso}
+								className={`text-sm transition-colors ${
+									!settings.iso
+										? "text-white/40 cursor-not-allowed" 
+										: "text-blue-400 hover:text-blue-300 cursor-pointer"
+								}`}
+							>
+								Auto
+							</button>
+							</div>
+							<span className="text-xs text-white/60">ISO Sensitivity</span>
 						</div>
 					)}
 
 					{activeControl === "colorTemperature" && capabilities?.colorTemperature && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">WB</span>
-							<input
-								type="range"
-								min={capabilities.colorTemperature.min}
-								max={capabilities.colorTemperature.max}
-								step={capabilities.colorTemperature.step}
-							value={settings.colorTemperature ?? 5600}
-							onChange={(e) => handleSettingChange("colorTemperature", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{settings.colorTemperature ? `${settings.colorTemperature}K` : "Auto"}
-						</span>
-						<button
-							onClick={() => {
-								const newSettings = { ...settings };
-								delete newSettings.colorTemperature;
-								setSettings(newSettings);
-								
-								// Apply settings without restarting camera
-								if (stream) {
-									(async () => {
-										try {
-											await applySettingsToStream(stream, newSettings);
-										} catch (err) {
-											console.error("Failed to apply auto WB settings:", err);
-										}
-									})();
-								}
-							}}
-							disabled={!settings.colorTemperature}
-							className={`text-sm transition-colors ${
-								!settings.colorTemperature
-									? "text-white/40 cursor-not-allowed" 
-									: "text-blue-400 hover:text-blue-300 cursor-pointer"
-							}`}
-						>
-							Auto
-						</button>
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">WB</span>
+								<input
+									type="range"
+									min={capabilities.colorTemperature.min}
+									max={capabilities.colorTemperature.max}
+									step={capabilities.colorTemperature.step}
+								value={settings.colorTemperature ?? 5600}
+								onChange={(e) => handleSettingChange("colorTemperature", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{settings.colorTemperature ? `${settings.colorTemperature}K` : "Auto"}
+							</span>
+							<button
+								onClick={() => {
+									const newSettings = { ...settings };
+									delete newSettings.colorTemperature;
+									setSettings(newSettings);
+									
+									// Apply settings without restarting camera
+									if (stream) {
+										(async () => {
+											try {
+												await applySettingsToStream(stream, newSettings);
+											} catch (err) {
+												console.error("Failed to apply auto WB settings:", err);
+											}
+										})();
+									}
+								}}
+								disabled={!settings.colorTemperature}
+								className={`text-sm transition-colors ${
+									!settings.colorTemperature
+										? "text-white/40 cursor-not-allowed" 
+										: "text-blue-400 hover:text-blue-300 cursor-pointer"
+								}`}
+							>
+								Auto
+							</button>
+							</div>
+							<span className="text-xs text-white/60">White Balance</span>
 						</div>
 					)}
 
 					{activeControl === "exposureCompensation" && capabilities?.exposureCompensation && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">EV</span>
-							<input
-								type="range"
-								min={capabilities.exposureCompensation.min}
-								max={capabilities.exposureCompensation.max}
-								step={capabilities.exposureCompensation.step}
-							value={settings.exposureCompensation ?? 0}
-							onChange={(e) => handleSettingChange("exposureCompensation", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{(settings.exposureCompensation ?? 0).toFixed(1)}
-						</span>
-						<button
-							onClick={() => {
-								const newSettings = { ...settings };
-								delete newSettings.exposureCompensation;
-								setSettings(newSettings);
-								
-								// Apply settings without restarting camera
-								if (stream) {
-									(async () => {
-										try {
-											await applySettingsToStream(stream, newSettings);
-										} catch (err) {
-											console.error("Failed to apply auto EV settings:", err);
-										}
-									})();
-								}
-							}}
-							disabled={!settings.exposureCompensation || settings.exposureCompensation === 0}
-							className={`text-sm transition-colors ${
-								!settings.exposureCompensation || settings.exposureCompensation === 0
-									? "text-white/40 cursor-not-allowed" 
-									: "text-blue-400 hover:text-blue-300 cursor-pointer"
-							}`}
-						>
-							Auto
-						</button>
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">EV</span>
+								<input
+									type="range"
+									min={capabilities.exposureCompensation.min}
+									max={capabilities.exposureCompensation.max}
+									step={capabilities.exposureCompensation.step}
+								value={settings.exposureCompensation ?? 0}
+								onChange={(e) => handleSettingChange("exposureCompensation", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{(settings.exposureCompensation ?? 0).toFixed(1)}
+							</span>
+							<button
+								onClick={() => {
+									const newSettings = { ...settings };
+									delete newSettings.exposureCompensation;
+									setSettings(newSettings);
+									
+									// Apply settings without restarting camera
+									if (stream) {
+										(async () => {
+											try {
+												await applySettingsToStream(stream, newSettings);
+											} catch (err) {
+												console.error("Failed to apply auto EV settings:", err);
+											}
+										})();
+									}
+								}}
+								disabled={!settings.exposureCompensation || settings.exposureCompensation === 0}
+								className={`text-sm transition-colors ${
+									!settings.exposureCompensation || settings.exposureCompensation === 0
+										? "text-white/40 cursor-not-allowed" 
+										: "text-blue-400 hover:text-blue-300 cursor-pointer"
+								}`}
+							>
+								Auto
+							</button>
+							</div>
+							<span className="text-xs text-white/60">Exposure Compensation</span>
 						</div>
 					)}
 
 				{activeControl === "focusDistance" && capabilities?.focusDistance && (
-					<div className="flex flex-row items-center gap-2">
-						<span className="text-xs text-blue-400">FOCUS</span>
-						<input
-							type="range"
-							min={capabilities.focusDistance.min}
-							max={capabilities.focusDistance.max}
-							step={capabilities.focusDistance.step}
-						value={settings.focusDistance ?? capabilities.focusDistance.min}
-						onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
-						className="w-48 accent-blue-500"
-					/>
-					<span className="text-sm font-semibold">
-						{(settings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}m
-					</span>
-					<button
-						onClick={() => handleSettingChange("focusMode", "continuous")}
-						disabled={settings.focusMode === "continuous"}
-						className={`text-sm transition-colors ${
-							settings.focusMode === "continuous" 
-								? "text-white/40 cursor-not-allowed" 
-								: "text-blue-400 hover:text-blue-300 cursor-pointer"
-						}`}
-					>
-						Auto
-					</button>
-				</div>
-			)}				{activeControl === "exposureTime" && capabilities?.exposureTime && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">SHUTTER</span>
+					<div className="flex flex-col items-center gap-3">
+						<div className="flex flex-row items-center justify-center gap-2">
+							<span className="text-xs text-blue-400">FOCUS</span>
 							<input
 								type="range"
-								min={capabilities.exposureTime.min}
-								max={capabilities.exposureTime.max}
-								step={capabilities.exposureTime.step}
-							value={settings.exposureTime ?? capabilities.exposureTime.min}
-							onChange={(e) => handleSettingChange("exposureTime", Number(e.target.value))}
+								min={capabilities.focusDistance.min}
+								max={capabilities.focusDistance.max}
+								step={capabilities.focusDistance.step}
+							value={settings.focusDistance ?? capabilities.focusDistance.min}
+							onChange={(e) => handleSettingChange("focusDistance", Number(e.target.value))}
 							className="w-48 accent-blue-500"
 						/>
 						<span className="text-sm font-semibold">
-							{settings.exposureTime
-								? `1/${Math.round(1000 / settings.exposureTime)}`
-								: "Auto"
-							}
+							{(settings.focusDistance ?? capabilities.focusDistance.min).toFixed(1)}m
 						</span>
 						<button
-							onClick={() => {
-								const newSettings = { ...settings };
-								delete newSettings.exposureTime;
-								
-								// Only set to continuous if both exposureTime and iso will be cleared
-								if (!newSettings.iso) {
-									newSettings.exposureMode = "continuous";
-								}
-								
-								setSettings(newSettings);
-								
-								// Apply settings without restarting camera
-								if (stream) {
-									(async () => {
-										try {
-											await applySettingsToStream(stream, newSettings);
-										} catch (err) {
-											console.error("Failed to apply auto exposure time settings:", err);
-										}
-									})();
-								}
-							}}
-							disabled={!settings.exposureTime}
+							onClick={() => handleSettingChange("focusMode", "continuous")}
+							disabled={settings.focusMode === "continuous"}
 							className={`text-sm transition-colors ${
-								!settings.exposureTime
+								settings.focusMode === "continuous" 
 									? "text-white/40 cursor-not-allowed" 
 									: "text-blue-400 hover:text-blue-300 cursor-pointer"
 							}`}
@@ -1054,30 +1022,89 @@ export default function CameraPage() {
 							Auto
 						</button>
 						</div>
+						<span className="text-xs text-white/60">Focus Distance</span>
+					</div>
+			)}				{activeControl === "exposureTime" && capabilities?.exposureTime && (
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">SHUTTER</span>
+								<input
+									type="range"
+									min={capabilities.exposureTime.min}
+									max={capabilities.exposureTime.max}
+									step={capabilities.exposureTime.step}
+								value={settings.exposureTime ?? capabilities.exposureTime.min}
+								onChange={(e) => handleSettingChange("exposureTime", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{settings.exposureTime
+									? `1/${Math.round(1000 / settings.exposureTime)}`
+									: "Auto"
+								}
+							</span>
+							<button
+								onClick={() => {
+									const newSettings = { ...settings };
+									delete newSettings.exposureTime;
+									
+									// Only set to continuous if both exposureTime and iso will be cleared
+									if (!newSettings.iso) {
+										newSettings.exposureMode = "continuous";
+									}
+									
+									setSettings(newSettings);
+									
+									// Apply settings without restarting camera
+									if (stream) {
+										(async () => {
+											try {
+												await applySettingsToStream(stream, newSettings);
+											} catch (err) {
+												console.error("Failed to apply auto exposure time settings:", err);
+											}
+										})();
+									}
+								}}
+								disabled={!settings.exposureTime}
+								className={`text-sm transition-colors ${
+									!settings.exposureTime
+										? "text-white/40 cursor-not-allowed" 
+										: "text-blue-400 hover:text-blue-300 cursor-pointer"
+								}`}
+							>
+								Auto
+							</button>
+							</div>
+							<span className="text-xs text-white/60">Shutter Speed</span>
+						</div>
 					)}
 
 					{activeControl === "zoom" && capabilities?.zoom && (
-						<div className="flex flex-row items-center gap-2">
-							<span className="text-xs text-blue-400">ZOOM</span>
-							<input
-								type="range"
-								min={capabilities.zoom.min}
-								max={capabilities.zoom.max}
-								step={capabilities.zoom.step}
-							value={settings.zoom ?? capabilities.zoom.min}
-							onChange={(e) => handleSettingChange("zoom", Number(e.target.value))}
-							className="w-48 accent-blue-500"
-						/>
-						<span className="text-sm font-semibold">
-							{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x
-						</span>
-					</div>
+						<div className="flex flex-col items-center gap-3">
+							<div className="flex flex-row items-center justify-center gap-2">
+								<span className="text-xs text-blue-400">ZOOM</span>
+								<input
+									type="range"
+									min={capabilities.zoom.min}
+									max={capabilities.zoom.max}
+									step={capabilities.zoom.step}
+								value={settings.zoom ?? capabilities.zoom.min}
+								onChange={(e) => handleSettingChange("zoom", Number(e.target.value))}
+								className="w-48 accent-blue-500"
+							/>
+							<span className="text-sm font-semibold">
+								{(settings.zoom ?? capabilities.zoom.min).toFixed(1)}x
+							</span>
+							</div>
+							<span className="text-xs text-white/60">Digital Zoom</span>
+						</div>
 				)}
 
 				{activeControl === "aspectRatio" && (
-					<div className={`flex gap-3 ${isLandscape ? 'flex-row items-center' : 'flex-col'}`}>
+					<div className="flex flex-col items-center gap-3">
 						<span className="text-sm font-semibold text-center">Aspect Ratio</span>
-						<div className={`flex gap-3 ${isLandscape ? 'flex-row' : 'flex-col'}`}>
+						<div className={`flex gap-3 justify-center ${isLandscape ? 'flex-row' : 'flex-col'}`}>
 						{[
 							{ ratio: 4/3, name: "4:3" },
 							{ ratio: 1, name: "1:1" },
@@ -1151,17 +1178,51 @@ export default function CameraPage() {
 											{highestRes.width}×{highestRes.height}
 										</span>
 									)}
-								</button>
-							);
-						})}
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					)}
+
+					{activeControl === "lens" && (
+						<div className="flex flex-col gap-3">
+							<h3 className="text-lg font-semibold text-center">Select Lens</h3>
+							<div className="flex gap-3 flex-wrap justify-center">
+								{cameras.map((camera, index) => {
+									const isSelected = selectedCamera === camera.deviceId;
+									return (
+										<button
+											key={camera.deviceId}
+											onClick={() => {
+												if (selectedCamera !== camera.deviceId) {
+													handleCameraChange(camera.deviceId);
+												}
+												setActiveControl(null);
+											}}
+											className={`px-6 py-4 rounded-xl transition-colors flex flex-col items-center gap-2 min-w-[100px] ${
+												isSelected
+													? "bg-blue-600 text-white"
+													: "bg-white/10 hover:bg-white/20 text-white"
+											}`}
+										>
+											<svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+											</svg>
+											<span className="font-semibold">Lens {index + 1}</span>
+											<span className="text-xs text-white/70 text-center">
+												{camera.label?.split('(')[0]?.trim() || 'Camera'}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					)}
 						</div>
 					</div>
-				)}
-					</div>
 				</>
-			)}
-
-			{/* Capture Button - Portrait mode: bottom center, Landscape mode: right side middle */}
+			)}			{/* Capture Button - Portrait mode: bottom center, Landscape mode: right side middle */}
 			{isLandscape ? (
 				<div className="absolute right-4 top-1/2 -translate-y-1/2 transition-all duration-300 ease-out transform">
 					<button
