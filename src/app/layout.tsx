@@ -1,10 +1,10 @@
-import "@cc/styles/globals.css";
+import "@bc/styles/globals.css";
 
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
-	title: "Camera Checker",
+	title: "BrowserCam",
 	description: "Test and configure camera capabilities in the browser",
 	icons: [{ rel: "icon", url: "/favicon.ico" }],
 	manifest: "/manifest.json",
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 	appleWebApp: {
 		capable: true,
 		statusBarStyle: "black-translucent",
-		title: "Camera Checker",
+		title: "BrowserCam",
 	},
 	viewport: {
 		width: "device-width",

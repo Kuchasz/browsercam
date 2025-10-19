@@ -11,8 +11,8 @@ import {
   listCameras,
   startCamera,
   stopCamera,
-} from "@cc/lib/camera";
-import { useOrientation } from "@cc/lib/useOrientation";
+} from "@bc/lib/camera";
+import { useOrientation } from "@bc/lib/useOrientation";
 import { ca } from "zod/v4/locales";
 
 type ActiveControl =

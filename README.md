@@ -1,4 +1,4 @@
-# Camera Checker
+# BrowserCam
 
 A web application for testing and configuring camera capabilities in the browser.
 

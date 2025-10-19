@@ -1,6 +1,6 @@
 {
-  "name": "Camera Checker",
-  "short_name": "CamCheck",
+  "name": "BrowserCam",
+  "short_name": "BrowserCam",
   "description": "Test and configure camera capabilities in the browser",
   "start_url": "/camera",
   "display": "standalone",

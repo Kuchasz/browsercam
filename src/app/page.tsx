@@ -7,7 +7,7 @@ export default function HomePage() {
 			<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16 text-center">
 				<div className="flex flex-col items-center gap-4">
 					<h1 className="font-extrabold text-5xl sm:text-[5rem] tracking-tight">
-						Camera <span className="text-blue-400">Checker</span>
+						Browser<span className="text-blue-400">Cam</span>
 					</h1>
 					<p className="max-w-2xl text-xl text-white/70">
 						Test and configure your camera capabilities directly in the browser.
@@ -22,7 +22,7 @@ export default function HomePage() {
 						Get Started
 					</Link>
 					<Link
-						href="https://github.com/Kuchasz/cam-checker"
+						href="https://github.com/Kuchasz/browsercam"
 						className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 font-semibold text-white no-underline transition-all hover:bg-white/20 hover:scale-105"
 						target="_blank"
 					>
