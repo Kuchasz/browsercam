@@ -924,7 +924,7 @@ export default function CameraPage() {
             )}
 
             {/* Focus Distance */}
-            {capabilities?.focusDistance && (
+            {capabilities?.focusDistance && capabilities?.focusMode && (
               <button
                 onClick={() =>
                   setActiveControl(
@@ -1167,7 +1167,7 @@ export default function CameraPage() {
           )}
 
           {/* Focus Distance */}
-          {capabilities?.focusDistance && (
+          {capabilities?.focusDistance && capabilities?.focusMode && (
             <button
               onClick={() =>
                 setActiveControl(
