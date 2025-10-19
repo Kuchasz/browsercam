@@ -122,9 +122,15 @@ export default function CameraPage() {
   const [activeControl, setActiveControl] = useState<ActiveControl>(null);
   const [isPending, startTransition] = useTransition();
   const isLandscape = useOrientation();
+  const [isIOS, setIsIOS] = useState(false);
   const [selectedAspectRatio, setSelectedAspectRatio] = useState<number>(
     16 / 9
   ); // Default to 16:9
+
+  // Detect iOS for specific workarounds
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent));
+  }, []);
 
   // Handle orientation change with smooth transition
   useEffect(() => {
@@ -285,6 +291,23 @@ export default function CameraPage() {
       }
     };
   }, [selectedCamera]);
+
+  // Restart camera on aspect ratio change for iOS
+  useEffect(() => {
+    if (isIOS) {
+      if (stream) {
+        stopCamera(stream);
+        setStream(null);
+      }
+
+      const currentCamera = selectedCamera;
+      setSelectedCamera("");
+
+      setTimeout(() => {
+        setSelectedCamera(currentCamera);
+      }, 50);
+    }
+  }, [selectedAspectRatio, isIOS]);
 
   // Ensure video element displays the stream
   useEffect(() => {
@@ -1826,60 +1849,55 @@ export default function CameraPage() {
 
                             if (stream) {
                               try {
-                                // Update settings with new aspect ratio
+                                setIsLoading(true);
+                                stopCamera(stream);
+                                setStream(null);
+
+                                // Update settings with new aspect ratio and ensure whiteBalanceMode
                                 const newSettings = {
                                   ...settings,
                                   aspectRatio: ratio,
                                 };
+
+                                // Ensure white balance mode stays continuous
+                                if (capabilities?.whiteBalanceMode?.includes("continuous")) {
+                                  newSettings.whiteBalanceMode = "continuous";
+                                }
+
                                 setSettings(newSettings);
 
-                                // Apply the new aspect ratio to the existing stream
-                                await applySettingsToStream(
-                                  stream,
-                                  newSettings
+                                const newStream = await startCamera(
+                                  newSettings,
+                                  selectedCamera
                                 );
+                                setStream(newStream);
+
+                                // Get actual current settings from the camera
+                                try {
+                                  const currentSettings = getCurrentSettings(newStream);
+                                  setSettings(currentSettings);
+                                } catch (err) {
+                                  console.warn("Could not get current camera settings:", err);
+                                }
+
+                                if (videoRef.current) {
+                                  videoRef.current.srcObject = newStream;
+                                  videoRef.current.load();
+                                  await videoRef.current.play();
+                                }
                               } catch (err) {
                                 console.error(
-                                  "Failed to apply new aspect ratio:",
+                                  "Failed to restart camera with new aspect ratio:",
                                   err
                                 );
-                                // If applying settings fails, fall back to restarting the camera
-                                try {
-                                  setIsLoading(true);
-                                  stopCamera(stream);
-                                  setStream(null);
-
-                                  const newSettings = {
-                                    ...settings,
-                                    aspectRatio: ratio,
-                                  };
-                                  setSettings(newSettings);
-
-                                  const newStream = await startCamera(
-                                    newSettings,
-                                    selectedCamera
-                                  );
-                                  setStream(newStream);
-
-                                  if (videoRef.current) {
-                                    videoRef.current.srcObject = newStream;
-                                    videoRef.current.load();
-                                    await videoRef.current.play();
-                                  }
-                                } catch (fallbackErr) {
-                                  console.error(
-                                    "Failed to restart camera with new aspect ratio:",
-                                    fallbackErr
-                                  );
-                                  setError("Failed to change aspect ratio");
-                                  setErrorDetails(
-                                    fallbackErr instanceof Error
-                                      ? fallbackErr.message
-                                      : "Unknown error"
-                                  );
-                                } finally {
-                                  setIsLoading(false);
-                                }
+                                setError("Failed to change aspect ratio");
+                                setErrorDetails(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Unknown error"
+                                );
+                              } finally {
+                                setIsLoading(false);
                               }
                             }
                           }}
