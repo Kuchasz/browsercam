@@ -718,7 +718,7 @@ export default function CameraPage() {
 							)} */}
 
               {/* Resolution Display */}
-              {capabilities?.width && capabilities?.height && (
+              {capabilities?.aspectRatio && (
                 <button
                   onClick={() =>
                     setActiveControl(
@@ -993,7 +993,7 @@ export default function CameraPage() {
 						)} */}
 
             {/* Resolution Display */}
-            {capabilities?.width && capabilities?.height && (
+            {capabilities?.aspectRatio && (
               <button
                 onClick={() =>
                   setActiveControl(
