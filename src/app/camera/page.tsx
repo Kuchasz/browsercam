@@ -1873,12 +1873,12 @@ export default function CameraPage() {
                                 setStream(newStream);
 
                                 // Get actual current settings from the camera
-                                try {
-                                  const currentSettings = getCurrentSettings(newStream);
-                                  setSettings(currentSettings);
-                                } catch (err) {
-                                  console.warn("Could not get current camera settings:", err);
-                                }
+                                // try {
+                                //   const currentSettings = getCurrentSettings(newStream);
+                                //   setSettings(currentSettings);
+                                // } catch (err) {
+                                //   console.warn("Could not get current camera settings:", err);
+                                // }
 
                                 if (videoRef.current) {
                                   videoRef.current.srcObject = newStream;
