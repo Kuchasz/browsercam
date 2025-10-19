@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FaGithub } from "react-icons/fa";
+import { FaCamera, FaGithub } from "react-icons/fa";
 
 export default function HomePage() {
 	return (
@@ -17,9 +17,10 @@ export default function HomePage() {
 				<div className="flex flex-row gap-4">
 					<Link
 						href="/camera"
-						className="rounded-full bg-blue-500/80 px-10 py-3 font-semibold text-white no-underline transition-all hover:bg-blue-500/90 hover:scale-105"
+						className="flex items-center gap-2 rounded-full bg-blue-500/80 px-6 py-3 font-semibold text-white no-underline transition-all hover:bg-blue-500/90 hover:scale-105"
 					>
-						Get Started
+						<FaCamera />
+						Start Camera
 					</Link>
 					<Link
 						href="https://github.com/Kuchasz/browsercam"
