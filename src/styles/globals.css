@@ -1,11 +1,42 @@
 @import "tailwindcss";
 
-@theme {
-	--font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-		"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-	
-	--animate-slide-down: slide-down 0.3s ease-out;
-	--animate-slide-up: slide-up 0.3s ease-out;
+body {
+	background-color: #0a0a14;
+	color: #e0e0e0;
+}
+
+.main-container::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-image: linear-gradient(
+			to right,
+			rgba(255, 255, 255, 0.07) 1px,
+			transparent 1px
+		),
+		linear-gradient(to bottom, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+	background-size: 3rem 3rem;
+	opacity: 0.3;
+	z-index: -1;
+}
+
+.main-container::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 80%;
+	height: 80%;
+	background: radial-gradient(
+		circle,
+		rgba(28, 82, 223, 0.2) 0%,
+		rgba(15, 15, 30, 0) 60%
+	);
+	z-index: -1;
 }
 
 /* Custom animations for sliding flyouts */
