@@ -2,6 +2,8 @@
 
 A web application for testing and configuring camera capabilities in the browser.
 
+**[Try it live here: https://browsercam.vercel.app/](https://browsercam.vercel.app/)**
+
 ![Application Demo](application_demo.gif)
 
 > **Note:** Not all camera features are supported on all platforms. The best support is currently available on Chrome browser for Android devices, which offers the most comprehensive access to advanced camera controls.
